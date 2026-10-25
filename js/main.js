@@ -169,7 +169,8 @@ function newGame(){
   const ng = !!saveMeta().ng;
   G = {
     day:1, morningDay:0, dayReady:0, coins:380 + (ng?500:0), mem:92, mood:70, mems,
-    stars:2, affix:null,
+    /* 试用期从 C 级起步:评级要有爬升过程,不能开局就 B 级、一周后满星。 */
+    stars:1, affix:null,
     flags:{}, seen:[],
     route:{ren:0,zhen:0,zhi:0},
     contract:null, lifeDone:false,
@@ -486,8 +487,9 @@ function showMorning(){
   // 常暖市公共屏幕:乌托邦的脸。体面、准确、无一处提到代价。
   const scr=(window.SCREEN&&SCREEN[G.day])||null;
   if(scr){
+    const ticker=(window.WORLD&&WORLD.screenTicker)||'算力池 · 全城矿机在线';
     panel.appendChild(h('div','publicScreen',
-      `<div class="psHead"><i class="psDot"></i>常暖市 · 公共屏幕</div><div class="psBody">${scr}</div>`));
+      `<div class="psHead"><i class="psDot"></i>常暖市 · 算力池公告</div><div class="psBody">${scr}</div><div class="psFoot">${ticker}</div>`));
   }
   panel.appendChild(mkBtn('起床','primary',()=>{
     app.innerHTML='';
@@ -630,7 +632,7 @@ function startDay(){
     const done=G.mems.sis_face!=='pawned';
     return `<div class="goalLabel">${done?'赎回完成 · 妹妹的脸':'赎回目标 · 妹妹的脸'}</div>
       <div class="goalBar"><i style="width:${done?100:pct}%"></i></div>
-      <div class="goalVal">现有 ₡${G.coins} / ₡${target} · 周租金 ₡600</div>
+      <div class="goalVal">现有 ₡${G.coins} / ₡${target} · 周固定 ₡900</div>
       ${G.day===1?'<div class="goalFlow">今日流程:选一份睡班 → 用掉 1 次生活行动 → 开始今晚的睡班</div>':''}`;
   })();
   app.appendChild(h('div','goalStrip',goalHTML));
@@ -761,7 +763,10 @@ function lifeEffectText(lid,a){
   if(a.coins) out.push(a.coins>0?`+₡${a.coins}`:`−₡${-a.coins}`);
   if(a.mood) out.push(`情绪 ${a.mood>0?'+':''}${a.mood}`);
   if(a.mem) out.push(`记忆 +${a.mem}%`);
-  if(lid==='tower') out.push(G.stars>=5?'评级已满':'评级 +1');
+  if(lid==='tower'){
+    const wk=Math.ceil(G.day/7);
+    out.push(G.stars>=5?'评级已满':(G.flags.towerWeek!==wk?'评级 +1':'本周已复核 · 不再升评级'));
+  }
   if(lid==='gym') out.push('今夜净化 -15% 时间');
   if(a.type==='pawn') out.push('典当 / 赎回记忆');
   if(a.type==='union') out.push('联络醒觉会');
@@ -781,7 +786,13 @@ function doLife(lid){
   if(a.type==='union'){ unionScene(); return; }
   G.lifeDone=true;
   if(lid==='zao'){ G.flags.zao=(G.flags.zao||0)+1; }
-  if(lid==='tower'){ G.stars=Math.min(5,G.stars+1); if(G.route) G.route.zhi++; }
+  if(lid==='tower'){
+    /* 超频会可以反复参加,但评级每周只复核一次。
+       旧版 D2/D4/D6 连续三次直接把星级从 2 顶到 5,评级门槛形同虚设。 */
+    const wk=Math.ceil(G.day/7);
+    if(G.stars<5 && G.flags.towerWeek!==wk){ G.stars=Math.min(5,G.stars+1); G.flags.towerWeek=wk; }
+    if(G.route) G.route.zhi++;
+  }
   if(lid==='gym'){ G.flags.gym=1; }
   if(a.mood) G.mood=clamp(G.mood+a.mood,0,100);
   if(a.coins) G.coins+=a.coins;
@@ -1039,7 +1050,7 @@ function showPrologue(done){
     '2087 年。\n\n人类不再为了工作而睡觉——\n\n而是为了睡觉,而活着。',
     '"大闲置"拿走了九成职业那年,所有人都以为机器接得住。\n\n接了二十年,撞了三堵墙:电不够;算不出"懂";造不出"没见过"。',
     '于是他们回来找你的大脑。\n\n它是最后一种可再生算力:不用电,只吃饭;不用造,自己长;睡一觉就自动充满。\n\n供体舱里,它有个更短的名字——矿场。',
-    '账是这样的:\n\n全民基座每周给你 ₡200。体面舱的租金,每周 ₡600。\n\n中间那 ₡400 的缺口,就是这份合同全部的、也是唯一的理由。',
+    '账是这样的:\n\n全民基座每周给你 ₡200。体面舱的租金,每周 ₡600。\n\n中间那 ₡400 的缺口,是这份合同最基础的理由。\n\n机架维护另计:每周 ₡300。\n\n合同里不写这一条——因为它是"耗材"的账。',
     /* 真正驱动这三十天的是第二笔账。此前序章只讲了"活下去",
        而游戏里唯一一开始就欠着的东西(妹妹的脸,开局即已典当)从未被提过 ——
        玩家不知道自己为什么要点那个"赎回"按钮。
@@ -1190,6 +1201,14 @@ function showCodex(){
         lp.appendChild(h('div','waLi dim2','从海到云背,每一层都靠下一层供能。你在倒数第三层。'));
         W.layers.forEach(([n,d])=>lp.appendChild(h('div','waLi','<b>'+n+'</b> — '+d)));
         body.appendChild(lp);
+
+        /* 年表:把序章、017 的抗眠素、枢机的“一百年”和 2081 法案放在同一条轴上。 */
+        if(W.timeline && W.timeline.length){
+          const tp=h('div','panel','<div class="cn">年表 · 从大闲置到你的试用期</div>');
+          tp.appendChild(h('div','waLi dim2', `${W.era}　·　${W.law}`));
+          W.timeline.forEach(([y,d])=>tp.appendChild(h('div','waLi','<b>'+y+'</b> — '+d)));
+          body.appendChild(tp);
+        }
 
         /* 世界观地基:为什么 2087 年还在用人脑。
            没有这一段,上面所有内容都只是"低薪远程办公",而不是"生物矿场"。 */
@@ -1936,6 +1955,7 @@ function showAudit(audit, done){
     if(G.day>=8){ fees.push(['梦税(梦境内容授权)',40]); }
     if(G.day>=8){ fees.push(['情感锚点授权费',50]); G.flags.fee_seen=1; }
     if(G.day>=15){ fees.push(['高级供体数据险',30]); }
+    fees.push(['机架维护 · 散热液',300]);
   }
   fees.forEach(f=>{ net-=f[1]; });
   G.coins+=net; applyMood();

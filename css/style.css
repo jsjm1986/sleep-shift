@@ -874,3 +874,9 @@ body.night .btn.danger{ color:#FFB4B6; }
 }
 .goalFlow{ order:4; flex-basis:100%; font-size:11px; line-height:1.6; color:var(--ink2); padding-top:2px; }
 @media (max-width:520px){ .goalFlow{ font-size:10.5px; } }
+/* 公共屏幕:30 天播报统一带一行算力池状态 */
+.publicScreen .psFoot{
+  margin-top:7px; padding-top:6px; border-top:1px dashed var(--line);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10.5px; letter-spacing:.02em; color:var(--ink2); opacity:.8;
+}
