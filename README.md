@@ -24,6 +24,16 @@
   </tr>
 </table>
 
+## 更多片段
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/gifs/black.gif" width="220" alt="黑单私有池"><br><sub>黑单 · 无脸地铁</sub></td>
+    <td align="center"><img src="docs/gifs/ending.gif" width="220" alt="第三十一天的选择"><br><sub>第三十一天 · 由你选择<br><small>含结局名</small></sub></td>
+    <td align="center"><img src="docs/gifs/world.gif" width="220" alt="世界页年表"><br><sub>档案 · 年表</sub></td>
+  </tr>
+</table>
+
 ## 这是什么
 
 你是常暖市的一名试用期供体，编号 3409-02。合同写着“自愿出租睡眠时段大脑算力”，供体舱里的人把这份工作叫“上矿”。
