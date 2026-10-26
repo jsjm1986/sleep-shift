@@ -7,3 +7,11 @@
 *.log
 *.tmp
 node_modules/
+
+# impeccable 全局技能在本项目留下的 harness 钩子(全局安装已覆盖,不入游戏仓库)
+.codex/
+.cursor/
+.gemini/
+.grok/
+.agents/
+.claude/

@@ -237,12 +237,13 @@ function hudHTML(){
   const dots=[0,1,2,3,4].map(i=>`<i class="${G.mood>i*20+10?'on':''}"></i>`).join('');
   const week=['一','二','三','四','五','六','日'][(G.day-1)%7];
   const stars='★★★★★'.slice(0,G.stars)+'☆☆☆☆☆'.slice(0,5-G.stars);
+  /* v1.4:监测读数条。emoji 徽章退役——机架上的读数不长表情。 */
   return `<div class="hud">
-    <span class="pill">🗓 <b>第 ${G.day} 天</b>·周${week}</span>
-    <span class="pill">💰 ₡<b>${G.coins}</b></span>
-    <span class="pill" title="记忆完整性 · 系统口径:折旧(神经磨损累计)">🧠 记忆 <b class="${G.mem<50?'warn':''}">${G.mem}%</b></span>
-    <span class="pill" title="情绪稳定度 · 系统口径:散热(太烫的数据不干净)">☀️ 情绪 <b class="moodNum">${G.mood}</b><span class="moodDots">${dots}</span><button class="hudInfo" data-hudinfo="mood" aria-label="查看情绪与散热规则">i</button></span>
-    <span class="pill" title="公司评级 · 对外称星级,内部评级 ${starLetter(G.stars)} 级(见《供体评级手册》)">⭐ ${stars}<b class="slet">${starLetter(G.stars)}</b></span>
+    <span class="cell"><span class="lbl">第</span><b>${String(G.day).padStart(2,'0')}</b><span class="lbl">天·周${week}</span></span>
+    <span class="cell"><span class="lbl">余额</span><b>₡${G.coins}</b></span>
+    <span class="cell" title="记忆完整性 · 系统口径:折旧(神经磨损累计)"><span class="lbl">记忆</span><b class="${G.mem<50?'warn':''}">${G.mem}%</b></span>
+    <span class="cell" title="情绪稳定度 · 系统口径:散热(太烫的数据不干净)"><span class="lbl">情绪</span><b class="moodNum">${G.mood}</b><span class="moodDots">${dots}</span><button class="hudInfo" data-hudinfo="mood" aria-label="查看情绪与散热规则">i</button></span>
+    <span class="cell" title="公司评级 · 对外称星级,内部评级 ${starLetter(G.stars)} 级(见《供体评级手册》)"><span class="starsTxt">${stars}</span><b class="slet">${starLetter(G.stars)}</b></span>
   </div>`;
 }
 function toast(msg){
@@ -403,11 +404,16 @@ function showTitle(){
   $('#moodVeil').style.opacity=0;
   setGlitch(0);
   const meta=saveMeta();
+  /* v1.4:标题页 = 梦巢云算的"受理终端"。不是启动页,是一张立着的受理单。 */
   const wrap=h('div','title-wrap');
-  wrap.innerHTML=`
+  const form=h('div','tForm');
+  form.innerHTML=`
+    <div class="tDocHead"><span>梦巢云算 · 供体受理处</span><span>FORM 3409-02</span></div>
+    <div class="tSeal">共惠<br>受理</div>
     <div class="logo">睡班</div>
     <div class="logo-sub">SLEEP SHIFT</div>
-    <div class="slogan">"你睡觉,世界运转。"<br>—— 神经共惠计划 · 宣</div>`;
+    <div class="tRule"></div>
+    <div class="slogan">"你睡觉,世界运转。"<br><em>—— 神经共惠计划 · 宣</em></div>`;
   const btns=h('div','title-btns');
   /* 读不出内容但键还在 = 存档损坏。此前这种情况会让玩家点下去直接崩;
      现在如果只把按钮藏起来,玩家只会觉得"我的存档凭空没了",同样困惑 ——
@@ -437,7 +443,9 @@ function showTitle(){
     }));
   });
   btns.appendChild(row);
-  wrap.appendChild(btns);
+  form.appendChild(btns);
+  form.appendChild(h('div','tFoot','神经共惠计划 · 受理终端 v4.02<br>异议通道:维护中(自 2081 年起)'));
+  wrap.appendChild(form);
   app.innerHTML=''; app.appendChild(wrap);
 }
 
@@ -642,7 +650,7 @@ function startDay(){
   if(!D.offers) D.offers=['biaozhu','render'];
 
   app.innerHTML=hudHTML();
-  const head=h('div','',`<div class="dayTag">试用期 · NEURAL MUTUAL PROGRAM</div><div class="dayTitle">白天</div>`);
+  const head=h('div','',`<div class="dayHead"><span class="dayTag">试用期 · NEURAL MUTUAL PROGRAM</span><span class="dayNo">№ 3409-02 · D${String(G.day).padStart(2,'0')}</span></div><div class="dayTitle">白天</div>`);
   app.appendChild(head);
   /* 长期目标常驻:序章立了"赎回妹妹的脸 ₡4,500",但白天页面一次都没提醒,
      玩家很容易只剩"今天签哪单"的短视循环。 */
@@ -699,7 +707,7 @@ function startDay(){
       if(gateOn && c.id!=='black' && need>G.stars){
         const lc=h('div','cCard locked');
         lc.style.setProperty('--c1','#6B6B6B'); lc.style.setProperty('--c2','#8A8A8A');
-        lc.innerHTML=`<div class="cname">${c.icon} ${c.name}</div>
+        lc.innerHTML=`<div class="lockStamp">暂 缓</div><div class="cname">${c.icon} ${c.name}</div>
           <div class="cdesc">评级不足。该单要求 <b>${starLetter(need)}</b> 级,当前 <b>${starLetter(G.stars)}</b> 级。</div>
           <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[cid]||'—'}×10⁹ 突触秒 / 夜</div>
           <div class="cmeta"><span>已锁定 · 评级在每周大清算与云梯塔超频会上变动</span></div>`;
@@ -1611,6 +1619,10 @@ function nightLeadPage(cid){
 
 function nightQuietPanel(lines){
   setScene('bedroom');
+  /* 安静的夜也是夜:此前这里从不切夜间主题,纸色面板浮在黑暗卧室上,
+     像一块亮着的补丁。切到夜间(海的主题——你睡了自己的觉,池子替你放了片海),
+     次日清晨 showMorning 会切回白天。 */
+  FX.setMode('night','sea');
   app.innerHTML=hudHTML();
   const panel=h('div','panel fadeIn stagger');
   lines.forEach(l=>panel.appendChild(h('p','t',l)));
@@ -2115,10 +2127,11 @@ function showAudit(audit, done){
   doc.innerHTML=`
     <h4>${audit.title}</h4>
     <div class="sub">${audit.sub}</div>
+    <div class="docRule"></div>
     <div class="row"><span>本周矿池分成</span><b>+₡${G.weekEarn}</b></div>
     <div class="row"><span>全民基座(UBI)</span><b>+₡200</b></div>
     <div class="row"><span>住房租金 · 体面舱</span><b>-₡600</b></div>
-    <div class="row"><span>公司评级 · 内部 ${starLetter(G.stars)} 级</span><b>${stars}</b></div>
+    <div class="row"><span>公司评级 · 内部 ${starLetter(G.stars)} 级</span><b class="starsTxt">${stars}</b></div>
     <div class="row ${starDelta>0?'':(starDelta<0?'bad':'')}"><span>评级变动</span><b>${starBefore===G.stars?'维持':starLetter(starBefore)+' → '+starLetter(G.stars)}</b></div>
     ${starNote?`<div class="waNote">${starNote}</div>`:''}
     ${fees.map(f=>`<div class="row bad"><span>${f[0]}</span><b>-₡${f[1]}</b></div>`).join('')}
@@ -2129,7 +2142,7 @@ function showAudit(audit, done){
     <div class="waBlock"><div class="waHead">产出清单 · 开舱至今</div>${produceRows.map(x=>`<div class="waLi">· ${x}</div>`).join('')}<div class="waLi cut">${splitRow}</div></div>
     ${wa&&wa.upstairs?`<div class="waBlock up"><div class="waHead">同一周 · 楼上</div><div class="waLi">${wa.upstairs}</div></div>`:''}
     ${wa&&wa.note?`<div class="waNote">${wa.note}</div>`:''}
-    <div class="stamp">梦巢云算 · 已自动签收</div>`;
+    <div class="stamp">已自动签收<br><i>梦巢云算</i></div>`;
   wrap.appendChild(doc);
   wrap.appendChild(mkBtn('查看完毕','primary',()=>{ G.weekEarn=0; done&&done(); }));
   app.appendChild(wrap);
