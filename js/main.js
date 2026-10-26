@@ -60,7 +60,7 @@ function stateDelta(before, after){
 /* 合同三处显示共用同一份预览:派单板、签约弹窗、签后卡。
    这里只算"合同与加签"的可预期部分;夜间数据质量、金融的随机浮动另行标明,
    不再让卡面写出与实际结算不同的单一数字。 */
-function contractPreview(cid, affixId){
+function contractPreview(cid, affixId, rush){
   const c=CONTRACTS[cid]; if(!c) return null;
   const af=affixId ? AFFIXES[affixId] : null;
   let earn=c.coins, risk=c.risk, moodDelta=c.mood||0, memCost=0;
@@ -72,10 +72,12 @@ function contractPreview(cid, affixId){
     if(af.moodHalf) moodDelta=Math.round(moodDelta/2);
     if(af.memCost) memCost+=af.memCost;
   }
+  /* 急单:锁价覆盖(报酬/风险由 RUSH 手写,不随词缀/随机浮动) */
+  if(rush){ earn=rush.coins; risk=rush.risk; moodDelta-=6; }
   return {
     c, af, earn, risk, memCost,
-    minEarn:c.id==='finance' ? Math.round(earn*0.6) : earn,
-    maxEarn:c.id==='finance' ? Math.round(earn*1.4) : earn,
+    minEarn:(c.id==='finance' && !rush) ? Math.round(earn*0.6) : earn,
+    maxEarn:(c.id==='finance' && !rush) ? Math.round(earn*1.4) : earn,
     moodDelta:moodDelta-3                 // 每晚固定基础情绪 -3,卡面不能再藏
   };
 }
@@ -241,8 +243,8 @@ function hudHTML(){
   return `<div class="hud">
     <span class="cell"><span class="lbl">第</span><b>${String(G.day).padStart(2,'0')}</b><span class="lbl">天·周${week}</span></span>
     <span class="cell"><span class="lbl">余额</span><b>₡${G.coins}</b></span>
-    <span class="cell" title="记忆完整性 · 系统口径:折旧(神经磨损累计)"><span class="lbl">记忆</span><b class="${G.mem<50?'warn':''}">${G.mem}%</b></span>
-    <span class="cell" title="情绪稳定度 · 系统口径:散热(太烫的数据不干净)"><span class="lbl">情绪</span><b class="moodNum">${G.mood}</b><span class="moodDots">${dots}</span><button class="hudInfo" data-hudinfo="mood" aria-label="查看情绪与散热规则">i</button></span>
+    <span class="cell" title="记忆完整性——你还记得多少。池子管它的消耗叫「折旧」,第 14 条已自动签收"><span class="lbl">记忆</span><b class="${G.mem<50?'warn':''}">${G.mem}%</b></span>
+    <span class="cell" title="情绪——池子管它叫「散热」,低了要扣钱。点 i 看具体规则"><span class="lbl">情绪</span><b class="moodNum">${G.mood}</b><span class="moodDots">${dots}</span><button class="hudInfo" data-hudinfo="mood" aria-label="查看情绪与散热规则">i</button></span>
     <span class="cell" title="公司评级 · 对外称星级,内部评级 ${starLetter(G.stars)} 级(见《供体评级手册》)"><span class="starsTxt">${stars}</span><b class="slet">${starLetter(G.stars)}</b></span>
   </div>`;
 }
@@ -444,13 +446,14 @@ function showTitle(){
   });
   btns.appendChild(row);
   form.appendChild(btns);
+  if(saveWarned) form.appendChild(h('div','saveWarn','⚠ 此环境无法存档(隐私模式 / 存储配额)——进度只保留到关闭页面'));
   form.appendChild(h('div','tFoot','神经共惠计划 · 受理终端 v4.02<br>异议通道:维护中(自 2081 年起)'));
   wrap.appendChild(form);
   app.innerHTML=''; app.appendChild(wrap);
 }
 
 /* ================= 晨间 ================= */
-const CHAPTERS={1:['第一章','试用期'],8:['第二章','梦是内容'],15:['第三章','妹妹'],22:['第四章','真相与选择']};
+const CHAPTERS={1:['第一章','试用期'],8:['第二章','去向'],15:['第三章','妹妹'],22:['第四章','真相与选择']};
 function showChapterCard(done){
   const [num,title]=CHAPTERS[G.day]||['',''];
   const el=h('div','chapterCard',`<div class="cnum">${num}</div><div class="ctitle">${title}</div><div class="cline"></div>`);
@@ -562,6 +565,10 @@ function runSeq(seq){
     showTwist(item.__twist, ()=>{ FX.setMode('day'); runSeq(seq); });
     return;
   }
+  if(item.__transfer){
+    showTransferLetter(()=>runSeq(seq));
+    return;
+  }
   if(item.__audit){
     // 防御:序列在途时若天数已被推进,当天可能没有清算单——跳过而不是崩溃
     const a=(DAYS[G.day]||{}).audit;
@@ -664,6 +671,12 @@ function startDay(){
       ${G.day===1?'<div class="goalFlow">今日流程:选一份睡班 → 用掉 1 次生活行动 → 开始今晚的睡班</div>':''}`;
   })();
   app.appendChild(h('div','goalStrip',goalHTML));
+  /* 倒计时:第四章起,墙开始合拢。数字比台词更压迫。 */
+  if(G.day>=22){
+    const left=31-G.day;
+    app.appendChild(h('div','countdownStrip'+(left<=3?' hot':''),
+      `距试用期评估 <b>${left}</b> 天 · 逾期未提交书面异议者,自动转入永久供体`));
+  }
 
   /* 白天的方向感:今天有没有"会推进主线"的行动。
      生活行动此前是一排等价交易,玩家没有理由走向其中任何一个 ——
@@ -677,14 +690,14 @@ function startDay(){
   const cwrap=h('div','cards');
   if(G.contract){
     const c=CONTRACTS[G.contract];
-    const p=contractPreview(G.contract,G.affix);
+    const p=contractPreview(G.contract,G.affix,(G.flags.rush&&window.RUSH)?RUSH[G.day]:null);
     const card=h('div','cCard');
     card.style.setProperty('--c1',c.c1); card.style.setProperty('--c2',c.c2);
     card.innerHTML=`<div class="cname">${c.icon} ${c.name}</div>
       <div class="cdesc">已签署。今夜生效。</div>
       <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[G.contract]||'—'}×10⁹ 突触秒 / 夜</div>
       <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
-      <div class="cNote">${p.af?`已含加签 · ${p.af.name} · `:''}夜班基础情绪 -3 · 实际分成按当夜数据质量结算</div>`;
+      <div class="cNote">${p.af?`已含加签 · ${p.af.name} · `:''}入睡本身损耗情绪 −3 · 实到手 = 卡面分成 × 当夜数据质量(情绪差、忘得多都会打折,最低 8 折)</div>`;
     const re=mkBtn('改签','meek',()=>{ G.contract=null; startDay(); });
     card.appendChild(re);
     cwrap.appendChild(card);
@@ -724,12 +737,29 @@ function startDay(){
         <div class="cdesc">${c.desc}</div>
         <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[cid]||'—'}×10⁹ 突触秒 / 夜</div>
         <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
-        <div class="cNote">${c.id==='finance'?'金融分成 0.6–1.4× · ':''}夜班基础情绪 -3 · 实际分成按当夜数据质量结算</div>
+        <div class="cNote">${c.id==='finance'?'金融分成 0.6–1.4× 随机 · ':''}入睡本身损耗情绪 −3 · 实到手 = 卡面报酬 × 当夜数据质量(最低 8 折;评分规则见晨间读数旁的 i)</div>
         <div class="riskBar"><i style="width:${Math.min(100,c.risk*3)}%"></i></div>`;
       card.setAttribute('aria-label',`${c.name},${c.desc.replace(/\n+/g,' ')}`);
       bindActivate(card,()=>{ AUDIO.SFX.soft(); openContract(cid); });
       cwrap.appendChild(card);
     });
+    /* 急单:每周一天,池子的加急委托。锁价、不查评级、不可加签——
+       钱是平时的 1.6 倍,风险也写在脸上。这是派单板唯一一张"诱惑卡"。 */
+    const rush=(window.RUSH&&RUSH[G.day])||null;
+    if(rush){
+      const base=CONTRACTS[rush.cid];
+      const p=contractPreview(rush.cid,null,rush);
+      const card=h('div','cCard rush');
+      card.style.setProperty('--c1','#B03A2E'); card.style.setProperty('--c2','#F2683C');
+      card.innerHTML=`<div class="rushStamp">急</div><div class="cname">${base.icon} ${base.name} · 加急件</div>
+        <div class="cdesc">${rush.desc}</div>
+        <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[rush.cid]||'—'}×10⁹ 突触秒 / 夜(加急保量)</div>
+        <div class="cmeta"><span class="money">+₡${p.earn}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
+        <div class="cNote">加急件:锁价 · 不查评级 · 不可加签 · 情绪额外 −6 · 今夜有效</div>
+        <div class="riskBar"><i style="width:${Math.min(100,p.risk*3)}%"></i></div>`;
+      bindActivate(card,()=>{ AUDIO.SFX.soft(); openContract(rush.cid, rush); });
+      cwrap.appendChild(card);
+    }
     const no=mkBtn('不签,今晚裸睡','meek',()=>{ G.contract=null; toast('今晚不接单。好好睡。'); });
     cwrap.appendChild(no);
   }
@@ -987,7 +1017,7 @@ function openPawn(done){
 }
 
 /* ================= 合同签署(仪式) ================= */
-function openContract(cid){
+function openContract(cid, rush){
   const c=CONTRACTS[cid];
   const modal=h('div','modal');
   modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true');
@@ -1013,18 +1043,26 @@ function openContract(cid){
       <div class="signRow"><div class="signChip">林晚</div></div>
       <div class="tip">点击或拖动名牌完成签名 · 附加条款可不选 · 建议下滑阅读全部条款</div>
     </footer>`;
+  if(rush){
+    const hs = paper.querySelector('header small');
+    if(hs) hs.textContent = '加急件 · 锁价 · 不查评级';
+    const tp = paper.querySelector('.tip');
+    if(tp) tp.textContent = '加急件无附加条款 · 点击或拖动名牌完成签名';
+  }
   modal.appendChild(paper); app.appendChild(modal);
 
   // 附加条款:随机两个,可选一个
   const affixRow=paper.querySelector('.affixRow');
   const affixIds=Object.keys(AFFIXES).sort(()=>Math.random()-.5).slice(0,2);
   let picked=null;
+  /* 加急件不设附加条款:没有公司会给急件买保险。 */
+  if(rush) affixRow.style.display='none';
   /* 签约页预览必须随加签实时更新:旧版固定写基础合同数值,
      玩家勾了"深潜强超频"后仍以为只拿 ₡120、只 -2 情绪。 */
   const previewEl=paper.querySelector('.contractPreview');
   const renderPreview=()=>{
-    const p=contractPreview(cid,picked);
-    previewEl.innerHTML=`报酬:<b>${contractMoney(p)}</b>/夜 · 污染风险 <b>${p.risk}%</b> · 情绪影响 <b>${p.moodDelta>0?'+':''}${p.moodDelta}</b>${p.memCost?` · 记忆 -${p.memCost}%`:''}<br><span class="previewNote">夜班基础情绪 -3 · 实际分成按当夜数据质量结算(散热 × 折旧,最低 ×0.8)</span>`;
+    const p=contractPreview(cid,picked,rush);
+    previewEl.innerHTML=`报酬:<b>${contractMoney(p)}</b>/夜 · 污染风险 <b>${p.risk}%</b> · 情绪影响 <b>${p.moodDelta>0?'+':''}${p.moodDelta}</b>${p.memCost?` · 记忆 -${p.memCost}%`:''}<br><span class="previewNote">入睡本身损耗情绪 −3 · 实到手 = 上面的报酬 × 当夜数据质量(池子管情绪叫「散热」,管记忆损耗叫「折旧」,最低打 8 折)</span>`;
   };
   renderPreview();
   affixIds.forEach(aid=>{
@@ -1072,6 +1110,8 @@ function openContract(cid){
     chip.style.display='none';
     AUDIO.SFX.sign();
     G.contract=cid; G.affix=picked;
+    if(rush) G.flags.rush=1;
+    autoSave();   // 签约即存:跳转 startDay 前的 550ms 也算安全区
     setTimeout(()=>{ modal.remove(); startDay(); }, 550);
   };
   // 点击名牌/签名区 → 名牌飞入签名区(拖拽失败也能签)
@@ -1191,32 +1231,33 @@ function showCodex(){
     sis:   { name:'"妹妹"', icon:'🕯️', when:()=>!!G.flags.T5, desc:'档案说:情感锚点,来源:捐赠。你的眼泪说:她存在过。' },
     r3409: { name:'3409 号', icon:'🌙', when:()=>!!G.flags.met_3409, desc:'第 7 供体舱的"库存"。真正的失主。和她相比,你只是替她保管了三年。' },
     xm:    { name:'小满', icon:'✨', when:()=>(G.flags.xm||0)>=1, desc:'编号 0000,模型测试体。两千一百一十七个名字的容器,正在学做一个人。' },
-    archon:{ name:'枢机', icon:'🗄️', when:()=>!!G.flags.T8, desc:'第一代供体的聚合意识。以一万人的梦为食,对抗遗忘。' },
+    archon:{ name:'枢机', icon:'🗄️', when:()=>!!G.flags.T8, desc:'第一代矿机的聚合意识。跑了九十九年还没报废,现在是全城算力的调度台。' },
     wen:  { name:'温先生', icon:'🥂', when:()=>!!G.flags.patron_met, desc:'睡眠收藏家,清醒区的常客。"你们叫它睡班——我们叫它,订阅。"' }
   };
   const TWISTS_LOG=[
     {t:'第 14 条 · 自动签收', ok:()=>G.seen.includes('T1')},
-    {t:'梦是内容 · 梦境频道', ok:()=>!!G.flags.danmaku},
+    {t:'去向 · 算力看板', ok:()=>!!G.flags.danmaku},
     {t:'买家编号 · 互相消费', ok:()=>!!G.flags.T3},
     {t:'审计者的脸 · 收编', ok:()=>!!G.flags.T4},
     {t:'妹妹 · 三重真相', ok:()=>!!G.flags.T5},
     {t:'试用期 · 收割仪式', ok:()=>!!G.flags.T6},
     {t:'天空裂缝 · 穹顶', ok:()=>!!G.flags.cracked},
-    {t:'食梦者 · 枢机真身', ok:()=>!!G.flags.T8},
-    {t:'你在梦里 · 23:47', ok:()=>!!G.flags.T9},
+    {t:'第一代 · 枢机真身', ok:()=>!!G.flags.T8},
+    {t:'对账 · 23:47', ok:()=>!!G.flags.T9},
     {t:'017 的抗眠素', ok:()=>!!G.flags.j17},
     {t:'小满的越狱令', ok:()=>(G.flags.xm||0)>=1},
     {t:'3409 的守护', ok:()=>!!G.flags.T12},
-    {t:'穹顶之外是海', ok:()=>!!G.flags.sea13}
+    {t:'穹顶之外是海', ok:()=>!!G.flags.sea13},
+    {t:'估值 · 转正定价', ok:()=>!!G.flags.T14}
   ];
   const GLOSSARY=[
     ['供体','签署神经共惠计划、出租睡眠时段大脑算力的人。宣传语叫他们"共惠者"。',()=>true],
     ['睡班','22:40 至自然醒的接入时段。你一夜里,被开采的那一整段。',()=>true],
-    ['情绪','数值即画面。它决定了你看见的世界有多暖。',()=>true],
+    ['情绪','数值即画面。它决定你看见的世界有多暖,也决定今晚的分成打几折。池子管它叫「散热」。',()=>true],
     ['云背','梦境空间。云的背面。白天你在云上,睡班你坠入云背。',()=>G.day>=3],
     ['大清算','每周日的强制审计。顺便告诉你:这周你失去了百分之几的自己。',()=>G.day>=7],
     ['第 14 条','记忆损耗补偿,由系统自动签收,无需再次确认。',()=>!!G.flags.T1],
-    ['梦境频道','全市热播的治愈节目。素材来源:你。',()=>!!G.flags.danmaku],
+    ['梦境频道','全市热播的治愈节目。渲染它的算力与情绪样本,采购自你。',()=>!!G.flags.danmaku],
     ['记忆典当','越痛的记忆越值钱。赎回,从来比典当贵。',()=>!!G.flags.pawnshop_open],
     ['样本供体','报酬三倍,专人陪护,自愿参加。',()=>!!G.flags.feed_path],
     ['情感锚点','植入给你的牵挂。有牵挂的人梦更甜——梦更甜,数据更好。',()=>!!G.flags.T5],
@@ -1438,11 +1479,17 @@ function settleLine(earn, af, cid, q, gross, hs){
   if(hs===undefined) hs=tonightHash(cid);
   const cut=(gross!=null && gross>earn) ? (gross-earn) : 0;
   const grade=q ? q.grade : '优';
-  const why=(q && q.why && q.why.length) ? '('+q.why.join('/')+')' : '';
-  const cutTxt=cut>0 ? `,数据降级已扣 ₡${cut}` : '';
-  return hs
-    ? `睡班结算:本夜产出 <b>${hs} 突触秒</b>　数据质量:${grade}${why}。\n矿池分成 <b>+₡${earn}</b>${cutTxt}${af?`(含加签 · ${af.name})`:''}。`
-    : `睡班结算:<b>+₡${earn}</b>${af?`(含加签 · ${af.name})`:''}。`;
+  /* 降级必须写人话:为什么降、少拿了多少。玩家每天读得最细的就是这一行——
+     因果链完整,制度才"可信得可怕";因果链含糊,压迫就只是背景音。 */
+  const whyMap={ '散热不足':'你带着情绪入睡', '折旧超标':'你忘掉的部分在拖累样本' };
+  const why=(q && q.why && q.why.length) ? '('+q.why.map(w=>whyMap[w]||w).join('、')+')' : '';
+  const cutTxt=cut>0 ? `,数据降级扣款 −₡${cut}` : '';
+  if(!hs) return `睡班结算:<b>+₡${earn}</b>${af?`(含加签 · ${af.name})`:''}。`;
+  const market=Math.round(parseFloat(hs)*HASH_PRICE);
+  const kept=Math.max(0, market-earn);
+  return `睡班结算:本夜产出 <b>${hs} 突触秒</b>,按公开牌价折 <b>₡${market}</b>。数据质量:${grade}${why}。`
+    + `\n矿池分成 <b>+₡${earn}</b>${cutTxt}${af?`(含加签 · ${af.name})`:''}。`
+    + `\n其余 <b>₡${kept}</b> 归池子。比例写在合同第 9 页,字很小。`;
 }
 /* 公开牌价:₡793 / 1×10⁹ 突触秒。
    这个数不是拍脑袋——它是从「隔夜风险池」那张唯一同时写明毛利与分成的结算单反推的:
@@ -1481,10 +1528,11 @@ function applyContractEconomy(){
   const q=nightQuality();
   /* 派单/签约/结算共用同一份合同预览,避免"卡面 ₡120、结算却按加签算"。
      这里把预览里的"夜班基础情绪 -3"还原成结算前的 moodDelta。 */
-  const p=contractPreview(c.id,G.affix);
+  const rush=(G.flags.rush&&window.RUSH)?RUSH[G.day]:null;
+  const p=contractPreview(c.id,G.affix,rush);
   let earn=p.earn, risk=p.risk, moodDelta=p.moodDelta+3, memCost=p.memCost;
   const af=p.af;
-  if(c.id==='finance') earn=Math.round(earn*(0.6+Math.random()*0.8));
+  if(c.id==='finance' && !rush) earn=Math.round(earn*(0.6+Math.random()*0.8));
   const gross=earn;                       // 降级前的应得,用于结算单上明写扣了多少
   earn=Math.round(earn*q.factor);
   const hsRaw=tonightHashRaw(c.id), hs=hsRaw?hsRaw.toFixed(2)+'×10⁹':null;
@@ -1517,6 +1565,7 @@ function applyContractEconomy(){
   G.workCounts[c.id]=workNo;
   const mg=(window.getMontage&&getMontage(c.id,workWeek))||null;
   G.affix=null;
+  if(rush) G.flags.rush=0;
   return { c, earn, af, hit, tainted, mg, week:workWeek, q, gross, hs, workSeen };
 }
 
@@ -2061,6 +2110,42 @@ function showTwist(id, done){
   }
 }
 
+/* ================= 转正合同(T6 交互化) ================= */
+/* T6 的恐怖不在于"读到条款",在于亲手确认无路可走。
+   「提交书面异议」可以点——每点一次,系统记一次账。第三次之后,连提示都懒得换了。 */
+function showTransferLetter(done){
+  const modal=h('div','modal');
+  modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true');
+  const paper=h('div','paper');
+  paper.innerHTML=`
+    <header>梦巢云算 · 转正合同 <small>№ 3409-02 · 密件</small></header>
+    <div class="body">
+      <p class="t" style="margin:0 0 8px">第三条:转正供体的中枢神经系统所有权,连同此后全部算力产出,一并让渡于梦巢云算,永久有效。</p>
+      <p class="t" style="margin:0 0 8px">第九条:试用期评估不通过者,执行记忆格式化,重新进入安置流程。</p>
+      <p class="t" style="margin:0">第十一条:试用期届满未提交书面异议者,视为自动转入永久供体。<br><b>异议通道:维护中(自 2081 年起)。</b></p>
+      <p class="t dim" style="margin-top:10px">(本合同无需再次签署。您于三十天前签署的第 11 条之自动转入条款,已生效。)</p>
+    </div>
+    <footer>
+      <div class="center" style="margin-top:4px">
+        <button class="btn meek" id="objBtn" style="display:inline-block">提交书面异议</button>
+        <div class="tip" id="objTip">维护中(自 2081 年起)</div>
+      </div>
+      <button class="btn primary" id="okBtn">我知道了</button>
+    </footer>`;
+  modal.appendChild(paper); app.appendChild(modal);
+  const tip=modal.querySelector('#objTip');
+  modal.querySelector('#objBtn').addEventListener('click',()=>{
+    G.flags.objection=(G.flags.objection||0)+1;
+    const n=G.flags.objection;
+    AUDIO.SFX.soft();
+    tip.textContent = n===1 ? '维护中(自 2081 年起)。'
+      : n===2 ? '维护中。已记录您的第 2 次尝试。'
+      : '已记录。';
+    if(n===3) toast('您的异议尝试,已写入档案。评估字段:服从性 −。');
+  });
+  modal.querySelector('#okBtn').addEventListener('click',()=>{ AUDIO.SFX.click(); modal.remove(); done&&done(); });
+}
+
 /* ================= 大清算 ================= */
 function showAudit(audit, done){
   audit = audit || {};
@@ -2076,7 +2161,9 @@ function showAudit(audit, done){
     app.appendChild(f);
     return;
   }
-  const wear=(G.flags.T1?2:1)+Math.floor(Math.random()*2);
+  /* 磨损按天确定(不再随机):玩家看过清算单后退出再进,重放的清算单必须
+     是同一张——随机数会让"同一份文件"前后数字不一致,还可能被读档重刷。 */
+  const wear=(G.flags.T1?2:1)+(G.day%2);
   G.mem=clamp(G.mem-wear,0,100);
   let net=200-600;
   const fees=[];
@@ -2138,6 +2225,7 @@ function showAudit(audit, done){
     <div class="row bad"><span>神经磨损(折旧)</span><b>-${wear}%</b></div>
     <div class="row bad"><span>记忆损耗补偿</span><b>已自动为您签收</b></div>
     <div class="row"><span>剩余记忆完整性</span><b>${G.mem}%</b></div>
+    ${G.day>=28?`<div class="row ${G.mem>=85?'':'bad'}"><span>残值预评 · 机架折旧后</span><b>${G.mem>=85?'建议保留':'₡'+(G.mem*40).toLocaleString()}</b></div>`:''}
     ${recap?`<div class="recap">本周记录:${recap}</div>`:''}
     <div class="waBlock"><div class="waHead">产出清单 · 开舱至今</div>${produceRows.map(x=>`<div class="waLi">· ${x}</div>`).join('')}<div class="waLi cut">${splitRow}</div></div>
     ${wa&&wa.upstairs?`<div class="waBlock up"><div class="waHead">同一周 · 楼上</div><div class="waLi">${wa.upstairs}</div></div>`:''}
@@ -2175,18 +2263,36 @@ function showEndingChoice(){
     keeper:()=>G.mem>=88 && !!G.flags.return_sis && !!G.flags.union_helped,
     formatted:()=>false
   };
-  const order=['wake','dream','feed','return','blackout','noodle','j17sleep','family','xiaoman','dealer','keeper'];
+  const order=['wake','dream','feed','return','blackout','noodle','j17sleep','family','xiaoman','dealer','upstairs','keeper'];
   for(const id of order){
     const E=ENDINGS[id]; if(!E) continue;
     const ok = E.cond ? E.cond(G) : (conds[id]?conds[id](G):false);
     if(!ok) continue;
     const card=h('div','cCard');
     card.style.setProperty('--c1','#38F2D8'); card.style.setProperty('--c2','#7B61FF');
-    card.innerHTML=`<div class="cname">${E.tag.replace('结局 · ','').replace('隐藏结局 · ','✦ ')} — ${E.name}</div><div class="cdesc">${(E.lines&&E.lines[0]||'').replace(/\n/g,' ').slice(0,60)}</div>`;
+    const cat = E.tag.includes('隐藏') ? '✦ 隐藏结局' : '结局';
+    card.innerHTML=`<div class="cname">${cat} — ${E.name}</div><div class="cdesc">${(E.lines&&E.lines[0]||'').replace(/\n/g,' ').slice(0,60)}</div>`;
     card.addEventListener('click',()=>{ AUDIO.SFX.chime(); showEnding(id); });
     cards.appendChild(card);
   }
   app.appendChild(cards);
+  /* 未走之路:只提示"差一步"的结局,不剧透条件细节——多周目的钩子。
+     规则:每条都要求"种子已种下"(相关 flag 已出现)但门槛未达标,最多亮一条。 */
+  const nearMiss=[
+    [G.stars===5 && (G.route.zhi||0)>=3 && !G.flags.feed_path && G.mem<90,
+      '有一张卡没有亮起。它要求你的数据完整度达到 90——你忘掉的太多了。'],
+    [G.mem>=70 && G.mem<88 && (!!G.flags.return_sis||!!G.flags.union_helped),
+      '有一张卡没有亮起。它要求你记得更多——至少 88%。'],
+    [(G.flags.mian_helped||G.flags.mian_deal) && G.route.ren<2,
+      '有一张卡没有亮起。这一路,你把具体的人捞出来的次数,还不够多。'],
+    [(G.flags.xm||0)===1 && !G.flags.teach_dream,
+      '有一张卡没有亮起。有人还在等你教她做梦。'],
+    [!!G.flags.clue_pawn && (G.flags.pawn_count||0)<3,
+      '有一张卡没有亮起。典当行只把柜台钥匙,交给卖掉过三次自己的人。'],
+    [!G.flags.union_helped && !!G.flags.T4,
+      '有一张卡没有亮起。有些门,你当初没有推开。']
+  ].find(x=>x[0]);
+  if(nearMiss) app.appendChild(h('div','dimHint',nearMiss[1]));
 }
 
 function showEnding(id){
@@ -2213,7 +2319,7 @@ function showEnding(id){
       lineBox.innerHTML='';
       const r=G.route||{ren:0,zhen:0,zhi:0};
       const twistsSeen=['T1','T2','T3','T4','T5','T6','T7','T8','T9'].filter(t=>G.seen.includes(t)).length
-        +(G.flags.j17?1:0)+((G.flags.xm||0)>=1?1:0)+(G.flags.T12?1:0)+(G.flags.sea13?1:0);
+        +(G.flags.j17?1:0)+((G.flags.xm||0)>=1?1:0)+(G.flags.T12?1:0)+(G.flags.sea13?1:0)+(G.flags.T14?1:0);
       const lg=lifetimeLedger();
       const nw=G.nightsWorked||0;
       /* 终局结算单:把三十天的总账一次性摊在玩家面前。
@@ -2228,7 +2334,7 @@ function showEnding(id){
         `\n你产出的每一秒算力,都不在你名下。`
       ].filter(Boolean).join('\n') : `—— 你这一生的产出 ——\n\n你没有接过一单。\n\n在这座城市,这既不叫自由,也不叫抵抗。\n\n这叫:没有被开采的价值。`;
       const st=h('div','panel epistats',
-        `本局档案 · 第 ${G.day} 天\n\n人性 ${r.ren} · 真相 ${r.zhen} · 体制 ${r.zhi}\n\n记忆完整性 ${G.mem}% · 典当 ${G.flags.pawn_count||0} 次 · 赎回 ${G.flags.redeem_count||0} 次\n\n${ledgerBlock}\n\n已见证的真相:${twistsSeen} / 13`);
+        `本局档案 · 第 ${G.day} 天\n\n人性 ${r.ren} · 真相 ${r.zhen} · 体制 ${r.zhi}\n\n记忆完整性 ${G.mem}% · 典当 ${G.flags.pawn_count||0} 次 · 赎回 ${G.flags.redeem_count||0} 次\n\n${ledgerBlock}\n\n已见证的真相:${twistsSeen} / 14`);
       const cr=h('div','credits','《睡班》 SLEEP SHIFT<br>梦 · 工作组<br><br>感谢你,替我们做梦');
       wrap.appendChild(st); wrap.appendChild(cr);
       wrap.appendChild(mkBtn('回到标题','primary',showTitle));

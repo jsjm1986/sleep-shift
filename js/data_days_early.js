@@ -159,7 +159,7 @@ Object.assign(window.DAYS, {
     pages:[
       { text:[ Gday14Intro() ],
         choices:[
-          { label:'签署补偿协议(领取 ₡400)', fx:(G)=>{ G.coins+=400; G.mem=Math.max(0,G.mem-2); },
+          { label:'签署补偿协议(领取 ₡400)', fx:(G)=>{ G.coins+=400; G.mem=Math.max(0,G.mem-2); G.flags.signed_comp=1; },
             lines:['你签了。\n\n笔尖落下的瞬间,你想起了第 14 条。\n\n你告诉自己这次不一样。\n\n哪里不一样,你说不上来。'] },
           { label:'拒绝', fx:(G)=>{ G.flags.refused_comp=1; G.mood=Math.min(100,G.mood+4); },
             lines:['你在"拒绝"一栏,签下了自己的名字。\n\n工作人员看你的眼神,像在看一台没有调好的机器。\n\n但你按了按胸口。那里还热着。'] }
