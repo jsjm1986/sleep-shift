@@ -770,6 +770,40 @@ body.night .btn.danger{ color:#FFB4B6; }
 .lifeCard.unaffordable{ opacity:.58; }
 .lifeCard.unaffordable .lifeMeta{ color:var(--ink2); }
 
+/* ---------- 生活行动:今天有戏 ---------- */
+/* 卡片上多一个"有戏"角标。不是为了好看:没有它,三个生活行动在玩家眼里
+   是一排等价交易,主线藏在哪个地点全靠猜。 */
+.lifeCard .lifeTag{
+  position:absolute; top:6px; right:6px;
+  font-size:9px; font-weight:700; letter-spacing:.08em;
+  padding:1px 5px; border-radius:6px;
+  color:#0B0E1A; background:#E4C98B;
+  box-shadow:0 0 10px rgba(228,201,139,.45);
+}
+.lifeCard:has(.lifeTag){ border-color:rgba(228,201,139,.5); }
+.storyHint{
+  margin:6px 0 8px; padding:8px 11px; border-radius:10px;
+  font-size:12px; line-height:1.75; color:var(--ink);
+  background:rgba(228,201,139,.08);
+  border-left:2px solid #E4C98B;
+}
+.storyHint b{
+  display:block; font-size:10px; letter-spacing:.16em;
+  color:#E4C98B; margin-bottom:2px;
+}
+
+/* ---------- 清晨:昨天那一步 ---------- */
+.dayLead{
+  margin:0 0 12px; padding:9px 12px; border-radius:0 10px 10px 0;
+  font-size:13px; line-height:1.8; color:var(--ink);
+  background:rgba(56,242,216,.05);
+  border-left:2px solid rgba(56,242,216,.4);
+}
+.dayLead .leadTag{
+  display:block; font-size:10px; letter-spacing:.16em;
+  color:#7DFFE8; margin-bottom:3px;
+}
+
 /* ---------- VN 选择回执 ---------- */
 .vnDelta{
   margin-top:8px; padding:6px 10px; border-radius:8px;

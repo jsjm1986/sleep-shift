@@ -45,13 +45,13 @@ Object.assign(window.DAYS, {
           lines:['你把本子合上,压在枕头下面。\n\n那一晚,你睡得意外地沉。'] }
       ]}
   ],
-  life:['park','zao','metro'],
+  life:['tower','zao','metro'],
   offers:['biaozhu','render','finance','black']
 },
 
 19: {
   morning:[ '今晚你会梦见账簿。', '你自己都不知道,你为什么会知道。' ],
-  life:['park','clinic','zao'],
+  life:['park','clinic','noodle'],
   offers:['biaozhu','render','finance','art'],
   night:{ forced:{ theme:'ledger', title:'账簿 · 档案房', taint:false, nodes:[
     { type:'pages', pages:[
@@ -70,7 +70,7 @@ Object.assign(window.DAYS, {
     '"相邻供体的算力,是打包出售的。"他耸耸肩,拿起咖啡,"他们管这个叫——邻里。"\n\n(他走后你才发现:你的梦,原来从来不是一个人的房间。)'
   ],
   fx:(G)=>{ G.flags.neighbor=1; },
-  life:['zao','park','clinic'],
+  life:['noodle','partjob','zao','park'],
   offers:['biaozhu','render','finance','black','art']
 },
 
@@ -91,7 +91,7 @@ Object.assign(window.DAYS, {
         ]}
     ]
   },
-  life:['park','zao','tower','observatory'],
+  life:['zao','tower','observatory','gym'],
   offers:['biaozhu','render','finance','black']
 },
 
@@ -152,7 +152,7 @@ Object.assign(window.DAYS, {
           ] }
       ]}
   ],
-  life:['park','zao','metro'],
+  life:['radio','bookstore','metro'],
   offers:['biaozhu','render','finance','black'],
   night:{ forced:{ theme:'ledger', title:'账簿 · 镜面房', taint:false, nodes:[
     { type:'pages', pages:[
@@ -203,7 +203,7 @@ Object.assign(window.DAYS, {
       ] };
     }
   ],
-  life:['park','zao','clinic'],
+  life:['gym','metro','clinic'],
   offers:['biaozhu','render','finance','black']
 },
 
@@ -215,7 +215,7 @@ Object.assign(window.DAYS, {
     '夜里,你翻开天文馆抄来的 2087 星历:\n\n"10 月 26 日,满月。"\n\n你抬头。\n\n穹顶上,什么都没有。'
   ],
   moodDelta:4,
-  life:['zao','park','tower'],
+  life:['zao','observatory','tower'],
   offers:['biaozhu','render','finance','black']
 },
 
@@ -230,13 +230,13 @@ Object.assign(window.DAYS, {
       '走出大厅时,何主管在门口等你。他没有提评估,只是深深看了你一眼:\n\n"明天,云背深处维护。\n\n您被选中,陪同进入。"\n\n这不是询问。'
     ]
   },
-  life:['park','zao','clinic'],
+  life:['partjob','bookstore','clinic'],
   offers:['biaozhu','render','finance','black']
 },
 
 29: {
   morning:[ '今天,云背的"最深处"对你开放。', '你在房间里坐到天黑。\n\n哪里都没去。' ],
-  life:['park','zao','clinic'],
+  life:['park','zao','gym'],
   offers:['biaozhu','render'],
   night:{ forced:{ theme:'core', title:'云背 · 最深处', taint:false, nodes:[
     { type:'pages', pages:[

@@ -33,7 +33,7 @@ Object.assign(window.DAYS, {
 
 3: {
   morning:[ '今天有低气压——气象局采购的那种。', '阿枣说,这种天,梦会特别沉。' ],
-  life:['park','zao','bookstore'],
+  life:['zao','bookstore','gym'],
   offers:['biaozhu','render','art'],
   night:{ forced:{ theme:'sea', title:'浅海 · 第 3 夜', taint:false, nodes:[
     { type:'pages', pages:[
@@ -47,7 +47,7 @@ Object.assign(window.DAYS, {
 
 4: {
   morning:[ '晨间新闻:今日晴天,降水率 0%,已连续 4,102 天。', '没有人问为什么。' ],
-  life:['tower','partjob','clinic'],
+  life:['noodle','tower','park','clinic'],
   offers:['biaozhu','render','art']
 },
 
@@ -95,7 +95,7 @@ Object.assign(window.DAYS, {
 
 8: {
   morning:[ '第二周。', '梦巢推送:"本周可接单类型已扩充。祝您睡眠愉快。"'],
-  life:['park','zao','bookstore'],
+  life:['park','radio','bookstore'],
   offers:['biaozhu','render','mole','art']
 },
 
@@ -105,7 +105,7 @@ Object.assign(window.DAYS, {
   storyAfter:[
     '整层楼的人都在看同一块屏幕。\n\n没有人觉得奇怪。\n\n包括十分钟前的你。'
   ],
-  life:['park','noodle','clinic'],
+  life:['noodle','clinic','park'],
   offers:['biaozhu','render','mole','art']
 },
 
@@ -141,7 +141,7 @@ Object.assign(window.DAYS, {
 12: {
   morning:[ '鱼骨的短信:"来一下。带脑子。"\n\n(你所有的脑子都在。你选择忽略这句话的歧义。)' ],
   story:{ twist:'T3' },
-  life:['pawnshop','park','clinic'],
+  life:['tower','zao','clinic'],
   offers:['biaozhu','render','mole','art']
 },
 
@@ -166,7 +166,7 @@ Object.assign(window.DAYS, {
         ]}
     ]
   },
-  life:['park','zao','clinic'],
+  life:['bookstore','zao','clinic'],
   offers:['biaozhu','render','mole','art']
 },
 
@@ -177,7 +177,7 @@ Object.assign(window.DAYS, {
     '"借来的幸福,"你在清醒后写进小本子,"也算幸福吗?"'
   ],
   moodDelta:-4,
-  life:['park','observatory','metro'],
+  life:['gym','observatory','metro'],
   offers:['biaozhu','render','mole','finance']
 },
 

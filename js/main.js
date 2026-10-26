@@ -9,6 +9,11 @@ function h(tag, cls, html){ const e=document.createElement(tag); if(cls) e.class
 function mkBtn(label, cls, onclick){ const b=h('button','btn'+(cls?' '+cls:''),label); b.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); onclick(e); }); return b; }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
+/* 生活行动 id → 卡面名字(去掉换行),清晨线索条用 */
+function LIFE_NAME(id){
+  const a=(window.LIFE&&LIFE[id]);
+  return a ? a.name.replace('\n',' · ') : '白天';
+}
 
 /* 星级 → 内部评级字母。
    《供体评级手册》(data_world.js DOCS)只写了 A/B/C/D 四档,而星级有 0~5 六级,
@@ -470,9 +475,20 @@ function showMorning(){
   }
   applyMood();
   const lines = typeof D.morning==='function' ? D.morning() : (D.morning||['新的一天。']);
+  /* 昨天白天做了什么,今早必须有人提。
+     原先这里只有一条"记忆 <80 时 30% 概率"的随机错认——那是通用的、和你的选择无关
+     的噪音。现在把玩家昨天真的走过的那一步放在最前面,随机错认退到它后面。
+     读出后立即清掉:回响只打一次,否则静养日/漏做的日子会把前天的下文重播。 */
+  const leadId=(window.DAY_LEAD&&G.flags.dayLead)?G.flags.dayLead:null;
+  const lead=leadId?window.DAY_LEAD.text[leadId]:null;
+  const leadName=leadId?LIFE_NAME(leadId):null;
+  if(leadId) G.flags.dayLead=0;
   autoSave();
   app.innerHTML=hudHTML();
   const panel=h('div','panel fadeIn stagger');
+  if(lead){
+    panel.appendChild(h('div','dayLead',`<span class="leadTag">昨天 · ${leadName}</span>${lead}`));
+  }
   lines.forEach(l=>panel.appendChild(h('p','t',l)));
   // 记忆完整性下降后的"错认"系统:每天 30% 概率
   if(G.mem<80 && G.mem>=25 && Math.random()<0.3){
@@ -511,6 +527,10 @@ function glitchBase(){
 function afterMorning(){
   const D=DAYS[G.day]||{};
   const seq=[];
+  /* 首日一句引导:D1 面前直接是"四份合同 + 三个行动 + 裸睡",此前没有任何
+     一句告诉玩家这一天该怎么用。放在剧情之前,只在 D1 出现一次。 */
+  const tutor=(window.DAY_TUTOR&&DAY_TUTOR.get)?DAY_TUTOR.get(G):null;
+  if(tutor) seq.push(...tutor);
   // 二周目:D1 开场差异
   if(G.flags.ng && G.day===1 && !G.flags.ngSeen){
     G.flags.ngSeen=1;
@@ -637,6 +657,13 @@ function startDay(){
   })();
   app.appendChild(h('div','goalStrip',goalHTML));
 
+  /* 白天的方向感:今天有没有"会推进主线"的行动。
+     生活行动此前是一排等价交易,玩家没有理由走向其中任何一个 ——
+     而主线恰恰藏在两三个具体的地点里(D4 面馆 / 便利店 / 典当行柜台)。 */
+  const storyHits=(resting?[]:(D.life||['park','zao','clinic']).concat(G.flags.pawnshop_open?['pawnshop']:[])
+    .filter((v,i,arr)=>arr.indexOf(v)===i))
+    .filter(lid=>!!lifeStoryTag(lid));
+
   // ---- 今晚的睡班 ----
   app.appendChild(h('div','h','今晚的睡班'));
   const cwrap=h('div','cards');
@@ -702,6 +729,10 @@ function startDay(){
 
   // ---- 生活行动 ----
   app.appendChild(h('h',`h`, G.lifeDone?'生活行动(今日已用)':'生活行动(1/1)'));
+  if(!resting && !G.lifeDone && storyHits.length){
+    const names=storyHits.map(lid=>LIFE_NAME(lid).split(' · ')[0]).join(' / ');
+    app.appendChild(h('div','storyHint',`<b>今天有人等你</b>${names}。这一步会推着故事往前走。`));
+  }
   const grid=h('div','lifeGrid');
   let lifeIds = resting ? [] : (D.life||['park','zao','clinic']).slice();
   /* 典当行一旦知道门在哪,就一直是"今天可以做的事"之一。
@@ -717,8 +748,13 @@ function startDay(){
     const short=Math.max(0, cost-G.coins);
     const card=h('div','lifeCard'+(G.lifeDone?' used':'')+(short?' unaffordable':''));
     const effect=lifeEffectText(lid,a);
-    card.innerHTML=`<div class="ic">${a.icon}</div><div class="nm">${a.name.replace('\n','<br>')}</div><div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
-    card.title=short ? `余额不足,还差 ₡${short}` : effect;
+    /* 「有戏」标:今天这一步会把主线往前推。不给内容提示(不剧透),只给方向。
+       没有它的日子里,三个选项在玩家眼里是纯等价交易。 */
+    const tag=lifeStoryTag(lid);
+    card.innerHTML=`<div class="ic">${a.icon}</div><div class="nm">${a.name.replace('\n','<br>')}</div>`
+      +`${tag?`<div class="lifeTag">${tag}</div>`:''}`
+      +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
+    card.title=short ? `余额不足,还差 ₡${short}` : (tag?`${effect}\n(今天这里有剧情)` : effect);
     card.setAttribute('aria-disabled', G.lifeDone||short ? 'true':'false');
     bindActivate(card,()=>{
       if(G.lifeDone) return;
@@ -772,6 +808,18 @@ function lifeEffectText(lid,a){
   if(a.type==='union') out.push('联络醒觉会');
   return out.length?out.join(' · '):'平静的一天';
 }
+/* 今天这个行动有没有"戏"。
+   实测问题:生活行动卡只写数值,玩家看到的是一排等价交易。可其中几个
+   其实挂着主线 —— D4 的面娘、D20 的便利店、典当行的柜台。这些必须写在卡面上,
+   否则玩家永远不知道该往哪儿走,只能按收益挑。
+   peek 用一份 flags 副本试算,不写主存档(否则看卡面就当成做过)。 */
+function lifeStoryTag(lid){
+  const DS=window.DAY_SCENE;
+  if(!DS || !DS.get || !G) return '';
+  let peek;
+  try{ peek=DS.get(lid, JSON.parse(JSON.stringify(G))); }catch(e){ return ''; }
+  return peek ? '有戏' : '';
+}
 function doLife(lid){
   const a=LIFE[lid];
   /* 余额 guard:旧实现 `G.coins += a.coins` 可在钱不够时把金币扣成负数,
@@ -782,15 +830,29 @@ function doLife(lid){
   setScene(sceneMap[lid]||'home');
   /* 去一趟甜水巷最深处,要花掉今天那一次"生活"。
      原实现在这里直接 return,典当行不消耗行动次数 —— 等于白送一次额外行动。 */
-  if(a.type==='pawn'){ G.lifeDone=true; openPawn(()=>startDay()); return; }
-  if(a.type==='union'){ unionScene(); return; }
   G.lifeDone=true;
+  /* 记录"今天白天去了哪":夜里结算/清晨剧情要用(DATA.DAY_LEAD)。
+     必须放在典当/工会分支之前——这两个分支提前 return,放在后面就会漏记,
+     典当行/地铁站的日子将永远没有清晨回响和夜里的下文。 */
+  G.flags.dayLead=lid;
+  if(a.type==='pawn'){
+    /* 典当行先播"当天的戏"(鱼骨柜台),再开柜台弹窗。
+       原实现直接 openPawn,DAY_SCENE 里写给典当行的戏永远播不到(UI 层不可达)。 */
+    let pre=null;
+    const DS=window.DAY_SCENE;
+    if(DS && DS.get){ try{ pre=DS.get('pawnshop',G); }catch(e){ pre=null; } }
+    const open=()=>openPawn(()=>startDay());
+    if(pre && pre.length) runPages(pre, open); else open();
+    return;
+  }
+  if(a.type==='union'){ unionScene(); return; }
   if(lid==='zao'){ G.flags.zao=(G.flags.zao||0)+1; }
   if(lid==='tower'){
     /* 超频会可以反复参加,但评级每周只复核一次。
        旧版 D2/D4/D6 连续三次直接把星级从 2 顶到 5,评级门槛形同虚设。 */
     const wk=Math.ceil(G.day/7);
     if(G.stars<5 && G.flags.towerWeek!==wk){ G.stars=Math.min(5,G.stars+1); G.flags.towerWeek=wk; }
+    G.flags.tower_visit=1;   // 词条「深眠糖」的解锁依据:道具是超频会发的,不是健身房的
     if(G.route) G.route.zhi++;
   }
   if(lid==='gym'){ G.flags.gym=1; }
@@ -799,7 +861,23 @@ function doLife(lid){
   if(a.mem) G.mem=clamp(G.mem+a.mem,0,100);
   applyMood(); refreshHud();
   const pages = typeof a.pages==='function' ? a.pages(G) : (a.pages||['(什么也没发生。)']);
-  runPages(pages, ()=>startDay());
+  /* 当天的戏(DATA.DAY_SCENE)插在通用描写之后、LIFE_EXTRA 的"经济底注"之前。
+     通用描写讲的是这个地点,DAY_SCENE 讲的是今天这个地点为什么不同。
+     取不到(或今天没有戏)就原样播放,不改变既有任何一条。 */
+  let seq=pages;
+  const DS=window.DAY_SCENE;
+  if(DS && DS.get){
+    let scene=null;
+    try{ scene=DS.get(lid,G); }catch(e){ scene=null; }
+    if(scene && scene.length){
+      /* LIFE_EXTRA 是 data_world.js 追加在末尾的一拍,字数固定为本行动 +1 页。
+         这里插在倒数第 1 页之前,保证"经济底注"仍然是最后收尾的那一拍。 */
+      const extra=(window.LIFE_EXTRA&&window.LIFE_EXTRA[lid])?window.LIFE_EXTRA[lid].length:0;
+      const at=Math.max(0, pages.length-extra);
+      seq=pages.slice(0,at).concat(scene, pages.slice(at));
+    }
+  }
+  runPages(seq, ()=>startDay());
 }
 
 function unionScene(){
@@ -1438,6 +1516,10 @@ function settleContract(){
   const { c, earn, af, hit, tainted, mg, week, q, gross, hs, workSeen }=applyContractEconomy();
   const sceneMap={biaozhu:'annot',render:'render',mole:'lab',finance:'finance',black:'service',art:'zao'};
   const markSeen=()=>{ if(!G.workSeen||typeof G.workSeen!=='object') G.workSeen={}; G.workSeen[c.id+':'+week]=1; };
+  /* 白天的那一步,夜里必须有下文。
+     旧实现在"风平浪静"的夜里只贴一行通用日志,玩家白天做了什么对当晚零影响。
+     这里在结算单与日志之间插一页:池子会根据你今天去过哪儿,给你一句不同的话。 */
+  const lead=nightLeadPage(c.id);
   const proceed=()=>{
     if(hit){
       const nodes=[
@@ -1454,6 +1536,9 @@ function settleContract(){
     } else {
       nightQuietPanel([
         settleLine(earn,af,c.id,q,gross,hs),
+        /* nightQuietPanel 的 lines 是纯文本数组,页对象必须先解包 ——
+           直接塞对象会渲染成 [object Object](硬约束第 1 条的镜像)。 */
+        ...(lead?[lead.text.join('\n\n')]:[]),
         '今晚风平浪静。\n\n你的大脑在池子里连夜跑着,而你只觉得,睡了个好觉。',
         `【 今晚你的脑子算了什么 】\n\n${nightLog(true)}`
       ]);
@@ -1472,6 +1557,7 @@ function settleContract(){
     // 同一时刻,楼上:你今夜算了什么,被谁买走,他们拿它享受了什么
     const cons=(window.consumerPage&&consumerPage(c.id, week))||null;
     if(cons) pages.push(cons);
+    if(lead) pages.push(lead);
     runPages(pages, ()=>{ markSeen(); proceed(); });
   } else proceed();
 }
@@ -1480,11 +1566,47 @@ function quietNight(){
   G.mood=clamp(G.mood+3,0,100);
   G.mem=clamp(G.mem+1,0,100);
   applyMood();
+  const lead=nightLeadPage(null);
   nightQuietPanel([
     '今晚没有合同。\n\n你睡了一个属于你自己的觉——\n\n在这个城市,这几乎算一种奢侈。',
+    ...(lead?[lead.text.join('\n\n')]:[]),
     '记忆完整性 +1% · 情绪回升',
     `【 今晚,池子没有叫你 】\n\n${nightLog(false)}`
   ]);
+}
+
+/* 白天那一步在夜里的下文。cid 为空表示今晚没接单。
+   写法上刻意让池子(而不是主角)开口:它把你白天的行动,重新折算成了"数据质量"。
+   这是全篇的压迫方式——它不禁止你去,它只是把你去了这件事记进账。 */
+function nightLeadPage(cid){
+  if(!G || !G.flags || !G.flags.dayLead) return null;
+  const L=G.flags.dayLead;
+  const idle = !cid;
+  const T={
+    tower: idle
+      ? '你没有出工,但超频会的记录还在池里:\n\n"矿机主动申请深度睡眠。判定:服从性优。"\n\n今晚这两百块不算数,只是"服从性"三个字被记了一笔。'
+      : '超频会上登记的那次"自愿",今晚生效了。\n\n监测备注:本次深睡时长 +40 分钟,由矿机自行申请。\n\n补偿:无。它不需要补偿——它是你自己要的。',
+    noodle: idle
+      ? '今晚池子没叫你。\n\n你在家煮了半锅清水面,没有蛋。\n\n面娘的蛋今天算你赚了 —— 这是这座城里唯一一笔不会被抽成的收入。'
+      : '散热量比昨夜低了 0.4。\n\n系统把这条记进了"体检数据",备注写得很客气:\n\n"矿机进食状况良好。"\n\n它们连你吃没吃饱都在监测,只是不为它付钱。',
+    partjob: idle
+      ? '便利店的零工干了六小时,₡80。\n\n不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。'
+      : '今天的工时:六小时,₡80。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"',
+    clinic: idle
+      ? '诊所的账单 ₡150 已经开好。\n\n今晚没有产出,所以这一天在你人生账本上是纯支出。\n\n医生没说出口的那句话,比账单更贵。'
+      : '诊所的数据同步过来了。\n\n池子比你先看到那份神经检测报告 —— 它每晚都在看。\n\n它只关心一件:今夜的数据质量,是否仍然达标。',
+    radio: '你把收音机带进了舱。\n\n88.4 的杂音混进了采样。\n\n系统试图把它判成"干扰",判了三次,最后标记为:人声,低价值有噪。\n\n它没有删掉。它只是给它定了价。',
+    observatory: '你白天记的星历,在昨晚的采样里露了头。\n\n系统把它识别为"虚构天体坐标",判定:无价值,未计入产量。\n\n你笑了。\n\n三十天里,这是第一次有东西从池子里漏了出去。',
+    zao: '阿枣天台那段谈话混进了样本。\n\n系统标了一行备注:\n\n"检测到矿机与清醒者(拒签)接触。已记录,不影响当期结算。"\n\n"不影响当期结算"——这七个字,是它们仅剩的仁慈。',
+    park: '今天下午那三个小时,池子没有收到任何数据。\n\n它查了一遍日志,确认你没有掉线,只是什么都没干。\n\n它的批注只有两个字:闲置。',
+    bookstore: '一本诗集跟着你进了舱,压在枕头底下。\n\n采样抓到了几句不成句的句子,系统判为"低语义密度",丢弃。\n\n这是今晚唯一一次,你赢了。',
+    gym: '汗还没干。\n\n云背里你的动作比平常快 —— 系统把这归因于"散热良好",并擅自提高了今夜的采样频率。\n\n你替自己省下的时间,被它换成了产量。',
+    metro: '地铁站那行粉笔字,一直跟着你躺下。\n\n系统在样本里认出这个问句,判定:非授权内容。\n\n"你睡着的 8 小时,去了哪里?"\n\n它们没有回答。它们只是把它从产量里剔掉了。',
+    pawnshop: '池子的轨迹记录:甜水巷,47 分钟。\n\n系统标注:无算力产出区域,风险:低。\n\n他们不怕那家店。全城的记忆从那里过手,他们连税都不收。\n\n想一想,这是为什么。'
+  };
+  const body=T[L];
+  if(!body) return null;
+  return { who:'sys', text:[body] };
 }
 
 function nightQuietPanel(lines){
