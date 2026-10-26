@@ -1183,3 +1183,8 @@ body.night .countdownStrip{ background:var(--card); border-color:rgba(176,58,46,
   color:#B03A2E; background:rgba(176,58,46,.06);
   border:1px dashed rgba(176,58,46,.5);
 }
+
+/* ---------- VN 角色剪影头像 ---------- */
+.vnPortrait{ overflow:hidden; }
+.vnPortrait.hasSvg{ font-size:0; }
+.vnPortrait.hasSvg svg{ width:100%; height:100%; }

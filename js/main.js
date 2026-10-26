@@ -311,7 +311,9 @@ function runPages(pages, done, opts={}){
     if(p && p.who){
       const c=(window.CHARACTERS&&CHARACTERS[p.who])||{};
       const tone=c.tone||'#38F2D8';
-      portrait.textContent=c.icon||'❔';
+      const sv=(window.PORTRAITS&&window.PORTRAITS[p.who])||null;
+      if(sv){ portrait.innerHTML=sv; portrait.classList.add('hasSvg'); }
+      else { portrait.innerHTML=''; portrait.textContent=c.icon||'❔'; portrait.classList.remove('hasSvg'); }
       namePlate.textContent=c.name||p.who;
       portrait.style.borderColor=tone;
       portrait.style.boxShadow=`0 0 16px ${tone}44`;
