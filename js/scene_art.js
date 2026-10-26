@@ -891,5 +891,260 @@ Object.assign(builders, {
     return svg('noodle', '', d);
   },
 });
+/* v2.4 美术升级第二批:clinic/gym/bookstore/store/observatory 重绘 + pawn 细节 */
+Object.assign(builders, {
+
+  /* 社区诊所:检测仪 + 输液架 + 等候椅 + 叫号屏 */
+  clinic(){
+    const r=rng(31);
+    const l1=glow('g-cli-l1',195,70,170,'#F2F8FC',.5);
+    const mon=glow('g-cli-mon',300,240,60,'#7FD4E8',.25);
+    const d=`<defs>
+      <linearGradient id="g-cli-wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#EAF2F8"/><stop offset="100%" stop-color="#D4E2EE"/>
+      </linearGradient>
+      ${l1.def}${mon.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-cli-wall)"/>
+    <!-- 墙上十字(小,不喧宾) -->
+    <g opacity=".8">
+      <rect x="46" y="88" width="10" height="30" rx="2" fill="#FFFFFF"/>
+      <rect x="36" y="98" width="30" height="10" rx="2" fill="#FFFFFF"/>
+    </g>
+    ${l1.use}
+    <!-- 神经检测仪:屏幕 + 波形 -->
+    <g>
+      <rect x="236" y="180" width="118" height="84" rx="6" fill="#FDFEFF" stroke="#B8CCD8" stroke-width="2"/>
+      <rect x="250" y="194" width="90" height="42" rx="3" fill="#0F2030"/>
+      <path d="M254 218 L270 218 L278 202 L290 230 L300 212 L312 218 L336 218" stroke="#5AD8E8" stroke-width="2" fill="none"/>
+      <rect x="250" y="242" width="56" height="5" rx="2.5" fill="#D8E4EC"/>
+      <rect x="316" y="242" width="24" height="5" rx="2.5" fill="#D8E4EC"/>
+    </g>
+    ${mon.use}
+    <!-- 叫号屏:候诊 0 -->
+    <g>
+      <rect x="60" y="206" width="88" height="30" rx="3" fill="#10202E"/>
+      <text x="104" y="227" font-family="ui-monospace,monospace" font-size="13" fill="#7FD4E8" text-anchor="middle" letter-spacing="1">候诊 0</text>
+    </g>
+    <!-- 诊桌 + 终端 -->
+    <rect x="0" y="420" width="${W}" height="10" fill="#C2D2DE"/>
+    <rect x="0" y="430" width="${W}" height="170" fill="#D6E2EC"/>
+    <rect x="196" y="392" width="130" height="30" rx="3" fill="#E8F0F6" stroke="#B8CCD8"/>
+    <rect x="206" y="372" width="34" height="22" rx="2" fill="#22384A"/>
+    <!-- 输液架 -->
+    <g stroke="#9AB2C4" stroke-width="3" fill="none">
+      <line x1="70" y1="352" x2="70" y2="430"/>
+      <line x1="52" y1="352" x2="88" y2="352"/>
+    </g>
+    <rect x="58" y="358" width="9" height="26" rx="4" fill="#DCE8F0"/>
+    <!-- 等候椅两只 -->
+    <g fill="#AFC4D2">
+      <rect x="96" y="398" width="34" height="8" rx="4"/>
+      <rect x="98" y="380" width="30" height="20" rx="4"/>
+      <rect x="140" y="398" width="34" height="8" rx="4"/>
+      <rect x="142" y="380" width="30" height="20" rx="4"/>
+    </g>`;
+    return svg('clinic', '', d);
+  },
+
+  /* 健身房:镜墙 + 哑铃架 + 跑步机 + 顶光 */
+  gym(){
+    const r=rng(45);
+    const spot=glow('g-gym-spot',195,60,170,'#F2E8D8',.4);
+    const d=`<defs>
+      <linearGradient id="g-gym-wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1A1E2C"/><stop offset="100%" stop-color="#12152A"/>
+      </linearGradient>
+      ${spot.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-gym-wall)"/>
+    <!-- 镜墙:反射带 -->
+    <rect x="228" y="120" width="150" height="330" fill="#181C30" stroke="#2A2F4A" stroke-width="2"/>
+    <rect x="240" y="132" width="126" height="300" fill="#141830"/>
+    <path d="M262 132 L262 432" stroke="#20264A" stroke-width="3" opacity=".8"/>
+    <!-- 顶光 -->
+    <rect x="60" y="18" width="120" height="8" rx="4" fill="#F2E8D8" opacity=".85"/>
+    ${spot.use}
+    <!-- 哑铃架:架 + 哑铃对 -->
+    <g>
+      <rect x="40" y="392" width="150" height="10" rx="3" fill="#2A2F4A"/>
+      <rect x="46" y="402" width="8" height="70" fill="#20263E"/>
+      <rect x="176" y="402" width="8" height="70" fill="#20263E"/>
+      ${(() => { let s=''; const xs=[58,88,118,148]; for(const x of xs){ s+=`<rect x="${x}" y="366" width="7" height="28" fill="#2A2F4A"/><circle cx="${x+3.5}" cy="362" r="9" fill="#33395C"/><circle cx="${x+3.5}" cy="362" r="4.5" fill="#454C77"/>`; } return s; })()}
+    </g>
+    <!-- 跑步机 -->
+    <g>
+      <path d="M250 470 L360 470 L378 500 L262 500 Z" fill="#20263E"/>
+      <rect x="256" y="448" width="96" height="16" rx="6" fill="#181D33"/>
+      <rect x="342" y="398" width="10" height="54" fill="#20263E"/>
+      <rect x="330" y="384" width="36" height="18" rx="3" fill="#262C4C"/>
+      <rect x="336" y="389" width="24" height="4" rx="2" fill="#38F2D8" opacity=".45"/>
+    </g>
+    <!-- 地垫 -->
+    <rect x="24" y="540" width="200" height="14" rx="7" fill="#1A1F36"/>
+    <rect x="0" y="556" width="${W}" height="44" fill="#0E1122"/>`;
+    return svg('gym', '', d);
+  },
+
+  /* 旧书店:书架墙 + 梯 + 柜台阅读灯 + 空猫碗 */
+  bookstore(){
+    const r=rng(56);
+    const l1=glow('g-bk-l1',110,120,120,'#FFD9A0',.4);
+    const lamp=glow('g-bk-lamp',300,360,66,'#FFE2A8',.45);
+    const d=`<defs>
+      <linearGradient id="g-bk-wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3A2E20"/><stop offset="100%" stop-color="#2A2014"/>
+      </linearGradient>
+      ${l1.def}${lamp.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-bk-wall)"/>
+    ${l1.use}
+    <!-- 书架墙:三层 -->
+    <rect x="0" y="120" width="${W}" height="330" fill="#241B10"/>
+    <g>
+      <rect x="0" y="182" width="${W}" height="5" fill="#4A3822"/>
+      <rect x="0" y="292" width="${W}" height="5" fill="#4A3822"/>
+      <rect x="0" y="402" width="${W}" height="5" fill="#4A3822"/>
+      ${books(r,180,54)}${books(r,290,54)}${books(r,400,54)}
+    </g>
+    <!-- 靠梯 -->
+    <g stroke="#5A4426" stroke-width="5" fill="none">
+      <line x1="330" y1="150" x2="286" y2="446"/>
+      <line x1="352" y1="150" x2="308" y2="446"/>
+    </g>
+    <g stroke="#5A4426" stroke-width="3.6">
+      <line x1="324" y1="200" x2="348" y2="200"/>
+      <line x1="316" y1="266" x2="340" y2="266"/>
+      <line x1="308" y1="332" x2="332" y2="332"/>
+      <line x1="300" y1="398" x2="324" y2="398"/>
+    </g>
+    <!-- 柜台 + 绿罩阅读灯 -->
+    <rect x="0" y="446" width="${W}" height="10" fill="#4A3822"/>
+    <rect x="0" y="456" width="${W}" height="144" fill="#332718"/>
+    <rect x="180" y="470" width="120" height="14" rx="3" fill="#4A3822"/>
+    <path d="M226 442 L262 442 L250 466 L238 466 Z" fill="#5A7A50"/>
+    ${lamp.use}
+    <circle cx="244" cy="470" r="7" fill="#FFE2A8"/>
+    <!-- 空猫碗:猫今天没有出现 -->
+    <g>
+      <ellipse cx="90" cy="560" rx="20" ry="7" fill="#5A4426"/>
+      <ellipse cx="90" cy="556" rx="14" ry="4.6" fill="#332718"/>
+      <rect x="76" y="540" width="28" height="6" rx="3" fill="#4A3822"/>
+    </g>`;
+    return svg('bookstore', '', d);
+  },
+
+  /* 便利店:货架 + 冷柜 + 咖啡机 + 黄昏窗 */
+  store(){
+    const r=rng(67);
+    const l1=glow('g-st-l1',195,60,170,'#FFF2D8',.4);
+    const dusk=glow('g-st-dusk',60,150,110,'#FF9F5A',.3);
+    const d=`<defs>
+      <linearGradient id="g-st-wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#E8E2D4"/><stop offset="100%" stop-color="#CFC6B4"/>
+      </linearGradient>
+      <linearGradient id="g-st-win" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8FA8C8"/><stop offset="100%" stop-color="#E8A878"/>
+      </linearGradient>
+      ${l1.def}${dusk.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-st-wall)"/>
+    ${l1.use}
+    <!-- 黄昏窗 -->
+    <g>
+      <rect x="30" y="110" width="130" height="170" rx="4" fill="url(#g-st-win)"/>
+      <circle cx="60" cy="240" r="20" fill="#FFD9A0" opacity=".85"/>
+      <rect x="30" y="188" width="130" height="4" fill="#FFFFFF" opacity=".5"/>
+      <rect x="88" y="110" width="4" height="170" fill="#FFFFFF" opacity=".5"/>
+      <rect x="26" y="106" width="138" height="6" rx="3" fill="#8A8272"/>
+    </g>
+    ${dusk.use}
+    <!-- 货架两排:商品色块 -->
+    <g>
+      <rect x="196" y="150" width="170" height="8" fill="#B8AE9A"/>
+      <rect x="196" y="230" width="170" height="8" fill="#B8AE9A"/>
+      ${(() => { let s=''; const cols=['#D86A5A','#5AA8D8','#E8B84B','#7BC47F','#D88AB8','#8A7BD8']; for(let row=0;row<2;row++){ for(let k=0;k<8;k++){ const x=204+k*20+((row%2)*6); s+=`<rect x="${x}" y="${116+row*80}" width="13" height="${30+((k*7)%12)}" rx="2" fill="${cols[(k+row)%6]}"/>`; } } return s; })()}
+    </g>
+    <!-- 冷柜 -->
+    <g>
+      <rect x="196" y="330" width="170" height="130" rx="4" fill="#DCE8EC" stroke="#9AB2BC" stroke-width="2"/>
+      <rect x="204" y="338" width="154" height="96" fill="#B8D8E0"/>
+      ${(() => { let s=''; for(let row=0;row<3;row++){ s+=`<rect x="204" y="${368+row*26}" width="154" height="3" fill="#8FB8C4"/>`; for(let k=0;k<6;k++){ s+=`<rect x="${212+k*25}" y="${344+row*26}" width="9" height="20" rx="2" fill="${['#D86A5A','#5AA8D8','#E8B84B'][k%3]}"/>`; } } return s; })()}
+      <rect x="204" y="438" width="60" height="5" rx="2.5" fill="#7A94A0"/>
+    </g>
+    <!-- 柜台 + 咖啡机 -->
+    <rect x="0" y="470" width="${W}" height="14" fill="#A89E88"/>
+    <rect x="0" y="484" width="${W}" height="116" fill="#BEB49E"/>
+    <g>
+      <rect x="60" y="428" width="52" height="42" rx="4" fill="#332E28"/>
+      <rect x="68" y="436" width="36" height="14" rx="2" fill="#4A443C"/>
+      <rect x="76" y="452" width="18" height="10" rx="2" fill="#8A6A42"/>
+      <rect x="80" y="462" width="10" height="8" fill="#E8D8B8"/>
+    </g>`;
+    return svg('store', '', d);
+  },
+
+  /* 天文馆:穹顶 + 投影光锥 + 星座线 + 座位剪影 */
+  observatory(){
+    const r=rng(78);
+    const proj=glow('g-obs-p',195,300,80,'#8FB8FF',.3);
+    const d=`<defs>
+      <linearGradient id="g-obs-dome" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0A0E22"/><stop offset="100%" stop-color="#101632"/>
+      </linearGradient>
+      <linearGradient id="g-obs-cone" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8FB8FF" stop-opacity=".4"/><stop offset="100%" stop-color="#8FB8FF" stop-opacity="0"/>
+      </linearGradient>
+      ${proj.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-obs-dome)"/>
+    <!-- 穹顶弧 -->
+    <path d="M-20 260 C80 120 310 120 410 260" stroke="#232B52" stroke-width="10" fill="none"/>
+    ${stars(r,60,300)}
+    <!-- 投影机 + 光锥 -->
+    <rect x="176" y="286" width="38" height="22" rx="4" fill="#1A2040" stroke="#2A3352"/>
+    <path d="M180 308 L100 470 L290 470 L210 308 Z" fill="url(#g-obs-cone)"/>
+    ${proj.use}
+    <!-- 星座连线(投影在穹顶) -->
+    <g stroke="#8FB8FF" stroke-width="1.1" opacity=".75" fill="#C8D8FF">
+      <path d="M80 90 L130 70 L170 95 L220 60 L270 88 L320 55" fill="none"/>
+      <circle cx="80" cy="90" r="2.2"/><circle cx="130" cy="70" r="2.6"/><circle cx="170" cy="95" r="2"/>
+      <circle cx="220" cy="60" r="2.8"/><circle cx="270" cy="88" r="2.2"/><circle cx="320" cy="55" r="2.6"/>
+    </g>
+    <g stroke="#C8D8FF" stroke-width="1" opacity=".55" fill="none">
+      <path d="M60 150 L110 132 L150 158 L210 126"/>
+    </g>
+    <!-- 座位剪影两排 -->
+    <g fill="#0C1026">
+      <path d="M30 470 L30 448 C30 442 60 442 60 448 L60 470 Z"/>
+      <path d="M120 470 L120 448 C120 442 150 442 150 448 L150 470 Z"/>
+      <path d="M240 470 L240 448 C240 442 270 442 270 448 L270 470 Z"/>
+      <path d="M330 470 L330 448 C330 442 360 442 360 448 L360 470 Z"/>
+    </g>
+    <rect x="0" y="470" width="${W}" height="130" fill="#0A0D1E"/>
+    <g fill="#0E1330">
+      <rect x="10" y="500" width="80" height="12" rx="6"/>
+      <rect x="150" y="512" width="80" height="12" rx="6"/>
+      <rect x="290" y="500" width="80" height="12" rx="6"/>
+    </g>`;
+    return svg('observatory', '', d);
+  },
+});
+
+/* pawn 抽屉细节:把手 + 标签 */
+(() => {
+  const old = builders.pawn;
+  builders.pawn = function(){
+    const svgStr = old.apply(this, arguments);
+    /* 在既有 SVG 末尾追加细节层(抽屉把手与标签) */
+    return svgStr.replace('</svg>', `
+      <g fill="#2A2014">
+        ${(() => { let s=''; for(let row=0;row<4;row++){ for(let col=0;col<4;col++){ const x=44+col*82, y=150+row*108; s+=`<circle cx="${x+38}" cy="${y+46}" r="3.4" fill="#6B5230"/><rect x="${x+26}" y="${y+20}" width="24" height="9" rx="2" fill="#8A7248" opacity=".65"/>`; } } return s; })()}
+      </g>
+    </svg>`);
+  };
+})();
+
 return { build, keys:Object.keys(builders) };
+
 })();
