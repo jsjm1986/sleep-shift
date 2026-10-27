@@ -628,6 +628,54 @@ function routeHueShift(){ const a=routeAxis3(); return a==='zhi'?-16:(a==='ren'?
 function routeFieldQuant(){ return routeAxis3()==='zhi'; }
 function routeFieldJitter(){ return routeAxis3()==='zhen'; }
 
+/* ================= 关系温度(v2.14) =================
+   不引入新数值:温度从你已挣来的 flag 派生。借过的钱、看过的总账、听过的疤,
+   全都记在行为里——世界读行为,不读分数。0 陌生 / 1 相识 / 2 信任 / 3 交底。 */
+function bondOf(id){
+  const x=G.flags||{};
+  switch(id){
+    case 'mian': return x.son_told?3:((x.mian_helped||x.mian_deal)?2:((x.met_mian_day||x.need_mian_meet)?1:0));
+    case 'yu': return x.drawer_seen?3:((x.clue_pawn||x.baike_ledger)?2:(((x.pawn_count||0)>=1||x.knows_pawn||x.pawnshop_open)?1:0));
+    case 'guardian': return x.scar_story?3:((x.union_helped)?2:((x.T4)?1:0));
+    case 'xiaoman': return Math.min(3,(x.xm||0));
+    case 'zao': return Math.min(3,(x.zao||0));
+    case 'r3409': return x.gift3409?3:((x.met_3409)?2:((x.fee_seen)?1:0));
+    case 'j17': return x.j17_bond2?2:((x.j17||x.T4)?1:0);
+    default: return 0;
+  }
+}
+function bondSum(){
+  return ['mian','yu','guardian','xiaoman','zao','r3409'].reduce((s,id)=>s+bondOf(id),0);
+}
+
+/* 角色消费页:你的产出,与剧中人在"楼上"相遇。
+   工作不是孤立的数字——你渲染的海流进病房(面娘的儿子躺在其中),
+   你跑的检核在替第 7 供体舱看门(妹妹的脸每晚被检索一次)。
+   只在认识了相应角色后出现,且每次只出现一次(世界不在你认识他们之前剧透他们)。 */
+function characterConsumerPage(cid){
+  if(cid==='render'&&(G.flags.mian_helped||G.flags.mian_deal)&&!G.flags.cons_mian){
+    G.flags.cons_mian=1;
+    return { who:'sys', text:[
+      '【 同一时刻,楼上 】\n\n市一院 · 住院部舒缓环境科',
+      '你的海今晚流进了三间病房,和一间供体舱舒缓区。',
+      '采购备注:"本批次浪频偏慢,适合长期卧床与深睡疗养。"',
+      '其中一间的机架号,你好像在一张赎回单据的抬头上见过。',
+      '————\n舒缓环境服务 ₡900 / 床 / 月。你的这一晚:₡300。'
+    ] };
+  }
+  if((cid==='finance'||cid==='black')&&G.flags.T5&&!G.flags.cons_3409){
+    G.flags.cons_3409=1;
+    return { who:'sys', text:[
+      '【 同一时刻,楼上 】\n\n第 7 供体舱 · 存储阵列 · 冷备间',
+      '你今晚跑的检核,有一段负载流向了这里:情感锚点 · 检索优化。',
+      '那些被采购来的脸、笑声、一句「妈」——每晚都要被"检索"一次,以确认在库。',
+      '「妹妹的脸」的检索请求,队列编号 3409。它每晚都被查一次。从没漏过。',
+      '————\n存储托管 ₡0.02 / GB / 晚。你的算力,在替全城的"舍不得"看门。'
+    ] };
+  }
+  return null;
+}
+
 function afterMorning(){
   const D=DAYS[G.day]||{};
   const seq=[];
@@ -1383,8 +1431,12 @@ function showCodex(){
     if(tab==='who'){
       Object.entries(GUESSES).forEach(([id,c])=>{
         const un=c.when();
+        /* 关系温度:每个角色下面一行"你们的关系记录"——互动留下的账,可查阅。
+           GUESSES 键名与 bondOf 键名不同源(watch/xm vs guardian/xiaoman),先映射。 */
+        const bid=(id==='watch')?'guardian':(id==='xm')?'xiaoman':id;
+        const bl=(un&&window.BOND_TEXT&&BOND_TEXT[bid])?BOND_TEXT[bid][bondOf(bid)]:null;
         body.appendChild(h('div','panel codexRow'+(un?'':' locked'),
-          un? `<div class="cn"><span class="codexFace" style="background:${((window.CHARACTERS&&window.CHARACTERS[id])||{}).tone||'#38F2D8'}55">${(window.PORTRAITS&&window.PORTRAITS[id])||c.icon}</span> ${c.name}</div><div class="cd">${c.desc}</div>`
+          un? `<div class="cn"><span class="codexFace" style="background:${((window.CHARACTERS&&window.CHARACTERS[id])||{}).tone||'#38F2D8'}55">${(window.PORTRAITS&&window.PORTRAITS[id])||c.icon}</span> ${c.name}</div><div class="cd">${c.desc}</div>${bl?`<div class="cd dim" style="margin-top:4px">— ${bl}</div>`:''}`
              : `<div class="cn">? ? ?</div><div class="cd dim">尚未相遇。</div>`));
       });
     } else if(tab==='truth'){
@@ -1713,6 +1765,8 @@ function settleContract(){
     // 同一时刻,楼上:你今夜算了什么,被谁买走,他们拿它享受了什么
     const cons=(window.consumerPage&&consumerPage(c.id, week))||null;
     if(cons) pages.push(cons);
+    const cons2=characterConsumerPage(c.id);
+    if(cons2) pages.push(cons2);
     if(lead) pages.push(lead);
     runPages(pages, ()=>{ markSeen(); proceed(); });
   } else proceed();

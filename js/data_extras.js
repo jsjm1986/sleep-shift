@@ -156,6 +156,8 @@ window.ENDINGS = {
   ], extra:(G)=>{
     const out=[];
     if(G.flags.neighbor) out.push('出城的闸口,有个陌生人对你点了点头。\n\n"我认得你的梦。"他说,"走好。"');
+    /* 3409 的原品:接受过礼物的人,空手离开的质地不同。 */
+    if(G.flags.gift3409) out.push('内袋里,那枚数据核还在。海浪,和一个孩子的笑声。\n\n你不是空着手——你带着一段被自愿交托的原品。\n\n它会在没有人记得的地方,替两个人记得。');
     return out;
   }},
   blackout: { name:'断电', tag:'结局 · 断电', need:'union_helped', lines:[
@@ -179,6 +181,8 @@ window.ENDINGS = {
     const out=[];
     if(G.flags.zao>=3) out.push('阿枣知道。她什么都没问,只是每天多留一瓶汽水。');
     if(G.flags.neighbor) out.push('偶尔,有陌生人在街上对你点头。\n\n你们都记得,彼此的梦。');
+    /* 关系温度的终局重量:温度总和够高的人,不是一个人在守。 */
+    if((typeof bondSum==='function')&&bondSum()>=6) out.push('深夜,值班室的门被敲响过三次。\n\n一次是送面的,一次是送电池的。第三次没有人说话——门缝底下,塞进来一张纸条。\n\n上面是一个新学的词:\n\n"昨天。"');
     return out;
   }},
   formatted: { name:'格式化', tag:'结局 · 格式化', lines:[
