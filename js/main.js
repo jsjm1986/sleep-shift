@@ -381,16 +381,24 @@ function runPages(pages, done, opts={}){
       head.style.display='none';
     }
   }
+  /* v2.21:VN 文本可携带行内标签(结算行 <b> 等)。打字期间显示剥标签纯文本,
+     落定瞬间挂回原始 HTML——标签字符全程不可见(此前污染夜的结算行把 <b> 打成了字面量)。 */
+  const stripTags = t => t.replace(/<[^>]*>/g, '');
   function type(str){
     clearTimeout(typing); full=str; textBox.textContent='';
     nextCue.classList.remove('on');
+    const plain=stripTags(str);
     let k=0;
     /* 标点停顿:逗号 80ms/句读 160ms——文字游戏的呼吸感 */
     function typeStep(){
       if(token.dead){ typing=null; return; }
-      k+=1; textBox.textContent=full.slice(0,k);
-      if(k>=full.length){ typing=null; onTyped(); return; }
-      const ch=full[k-1];
+      k+=1;
+      if(k>=plain.length){
+        textBox.innerHTML=full;
+        typing=null; onTyped(); return;
+      }
+      textBox.textContent=plain.slice(0,k);
+      const ch=plain[k-1];
       const d = (ch==='，'||ch==='、'||ch===',') ? 80 : (ch==='。'||ch==='！'||ch==='？'||ch==='…') ? 160 : (ch==='\n') ? 60 : 22;
       typing=setTimeout(typeStep, d);
     }
@@ -398,7 +406,7 @@ function runPages(pages, done, opts={}){
   }
   function completeTyping(){
     clearTimeout(typing); typing=null;
-    textBox.textContent=full; onTyped();
+    textBox.innerHTML=full; onTyped();
   }
   function onTyped(){
     if(pendingChoices){ renderChoices(); }
