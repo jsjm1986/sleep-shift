@@ -114,6 +114,8 @@ function writePast(endingId){
   p.runs=(p.runs||0)+1;
   p.route=Object.assign({}, G.route||{ren:0,zhen:0,zhi:0});
   p.verdict=domAxis(2);
+  /* 关系温度一并归档:他们会登记你认识谁——都是数据质量的一部分。 */
+  p.bonds=(typeof bondSum==='function')?bondSum():0;
   p.ending=endingId||null;
   lsSet(SAVE_PREFIX+'past', JSON.stringify(p));
   return p;
@@ -2613,6 +2615,34 @@ function showDebugBar(){
 /* ================= 启动 ================= */
 window.addEventListener('pointerdown',function once(){ AUDIO.ambientOn(); window.removeEventListener('pointerdown',once); },{once:true});
 window.addEventListener('keydown',e=>{ if(e.key==='m') $('#muteBtn').click(); });
+/* 无障碍:模态焦点圈闭(审查报告遗留项)。
+   弹窗打开即自动聚焦内部第一个可聚焦元素;Tab/Shift+Tab 循环限制在弹窗内;
+   焦点意外落在弹窗外时拉回。不接管 Escape——部分弹窗(签约)是强制流程。 */
+(function(){
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Tab') return;
+    const ms=[...document.querySelectorAll('.modal')].filter(v=>v.isConnected);
+    const m=ms[ms.length-1];
+    if(!m) return;
+    const els=[...m.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+      .filter(x=>!x.disabled && x.offsetParent!==null);
+    if(!els.length) return;
+    const first=els[0], last=els[els.length-1];
+    if(!m.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+    else if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }, true);
+  new MutationObserver(muts=>{
+    for(const mu of muts) for(const n of mu.addedNodes){
+      if(n.nodeType===1 && n.classList && n.classList.contains('modal') && !n.dataset.trap){
+        n.dataset.trap=1;
+        n.setAttribute('role','dialog');
+        const f=n.querySelector('button:not([disabled]),[tabindex]');
+        if(f && f.focus) f.focus();
+      }
+    }
+  }).observe(document.body, { childList:true, subtree:true });
+})();
 $('#muteBtn').addEventListener('click',()=>{
   const m=AUDIO.toggleMute();
   $('#muteBtn').textContent = m?'✕':'♪';
