@@ -1168,6 +1168,7 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   .moodDots i, .vnNext{ transition:none; }
   .stagger > *{ animation-duration:.01s; }
   #scene .ste, #scene .scanY, #scene .pblink, #scene .sway{ animation:none; }
+  .ledgerLine{ animation-duration:.01s; }
   #app.falling{ animation-duration:.3s; }
 }
 /* 数据位一律等宽:₡ / 突触秒 / % / 时间戳 */
@@ -1290,3 +1291,43 @@ body.night .vitalsLine{ border-color:rgba(120,220,255,.2); }
   72%{ opacity:.92; }
   100%{ opacity:0; transform:translateX(-50%) rotate(-2deg) scale(.98); }
 }
+
+/* ---------- 系统通知 Toast(梦巢云算范式) ---------- */
+.toastBox{
+  background:linear-gradient(180deg, rgba(12,16,30,.95), rgba(16,20,38,.97));
+  border:1px solid rgba(120,220,255,.2); border-radius:6px;
+  padding:10px 16px 12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  transition:opacity .4s, transform .4s;
+  color:#E7EEF8;
+}
+.toastHead{
+  display:flex; align-items:center; gap:6px;
+  font-family:var(--f-sys); font-size:9px; letter-spacing:.2em;
+  color:#7C93B4; margin-bottom:5px;
+}
+.tDot{ width:6px; height:6px; border-radius:50%; background:#38F2D8; opacity:.7; }
+.toastMsg{ font-size:13.5px; line-height:1.7; color:#DCE8F5; }
+body:not(.night) .toastBox{
+  background:linear-gradient(180deg, rgba(28,24,20,.95), rgba(20,17,14,.97));
+  border-color:rgba(201,162,75,.25);
+}
+body:not(.night) .toastHead{ color:#8A7B62; }
+body:not(.night) .tDot{ background:var(--accent3); }
+body:not(.night) .toastMsg{ color:#E8E0D0; }
+/* ---------- 签约落笔微震 ---------- */
+@keyframes paperThud{
+  0%{ transform:scale(1); } 40%{ transform:scale(.995) translateY(1px); } 100%{ transform:scale(1); }
+}
+/* ---------- 账本逐行浮现 ---------- */
+.ledgerLine{ animation:ledgerIn .35s ease both; }
+@keyframes ledgerIn{ from{ opacity:0; transform:translateX(-8px); } to{ opacity:1; transform:none; } }
+
+/* ---------- 生活卡图标色彩编码 ---------- */
+.lifeCard .ic .licon{ transition:color .2s; }
+.lifeCard[data-ltype="recover"] .ic .licon{ color:#7BA381; }
+.lifeCard[data-ltype="work"] .ic .licon{ color:#7C93B4; }
+.lifeCard[data-ltype="story"] .ic .licon{ color:var(--gold); }
+body.night .lifeCard[data-ltype="recover"] .ic .licon{ color:#7BA381; }
+body.night .lifeCard[data-ltype="work"] .ic .licon{ color:#7C93B4; }
+body.night .lifeCard[data-ltype="story"] .ic .licon{ color:#E8C46B; }

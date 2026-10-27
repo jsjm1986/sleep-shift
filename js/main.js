@@ -255,9 +255,11 @@ function hudHTML(){
   </div>`;
 }
 function toast(msg){
-  const t=h('div','panel fadeIn',`<p class="t center">${msg}</p>`);
-  t.style.cssText='position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:75;max-width:80vw';
+  const t=h('div','toastBox',
+    `<div class="toastHead"><span class="tDot"></span>梦巢云算 · 系统通知</div><p class="toastMsg">${msg}</p>`);
+  t.style.cssText='position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:75;max-width:320px';
   document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(-8px)'; }, 1400);
   setTimeout(()=>t.remove(), 1800);
 }
 
@@ -838,6 +840,7 @@ function startDay(){
     /* 「有戏」标:今天这一步会把主线往前推。不给内容提示(不剧透),只给方向。
        没有它的日子里,三个选项在玩家眼里是纯等价交易。 */
     const tag=lifeStoryTag(lid);
+    card.dataset.ltype = ({ park:'recover', zao:'recover', clinic:'recover', gym:'recover', noodle:'recover', bookstore:'story', observatory:'story', radio:'story', metro:'story', tower:'work', partjob:'work', pawnshop:'story' })[lid] || 'recover';
     card.innerHTML=`<div class="ic"><span class="licon">${lIcon(lid)}</span></div><div class="nm">${a.name.replace('\n','<br>')}</div>`
       +`${tag?`<div class="lifeTag">${tag}</div>`:''}`
       +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
@@ -1158,6 +1161,8 @@ function openContract(cid, rush){
     area.textContent='林 晚';
     chip.style.display='none';
     AUDIO.SFX.sign();
+    vib(40);
+    paper.style.animation='paperThud .3s ease';
     G.contract=cid; G.affix=picked;
     if(rush) G.flags.rush=1;
     autoSave();   // 签约即存:跳转 startDay 前的 550ms 也算安全区
@@ -2321,6 +2326,7 @@ function showEndingChoice(){
     G.history.forEach((e2,i)=>{
       rr.appendChild(h('div','ledgerLine'+(i===G.history.length-1?' last':''),
         `<span class="ld">D${String(e2.d).padStart(2,'0')}</span><span class="lt">${e2.tag}</span><span class="lm">记忆 ${e2.mem}%</span>`));
+      rr.lastChild.style.animationDelay = (i * 0.06) + 's';
     });
     tl.appendChild(rr);
     app.appendChild(tl);
