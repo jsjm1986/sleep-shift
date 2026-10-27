@@ -644,7 +644,7 @@ function bondOf(id){
     case 'guardian': return x.scar_story?3:((x.union_helped)?2:((x.T4)?1:0));
     case 'xiaoman': return Math.min(3,(x.xm||0));
     case 'zao': return Math.min(3,(x.zao||0));
-    case 'r3409': return x.gift3409?3:((x.met_3409)?2:((x.fee_seen)?1:0));
+    case 'r3409': return x.gift3409?3:((x.met_3409)?2:((x.fee_seen||x.clue_pawn)?1:0));
     case 'j17': return x.j17_bond2?2:((x.j17||x.T4)?1:0);
     default: return 0;
   }
@@ -935,7 +935,7 @@ function startDay(){
     /* 「有戏」标:今天这一步会把主线往前推。不给内容提示(不剧透),只给方向。
        没有它的日子里,三个选项在玩家眼里是纯等价交易。 */
     const tag=lifeStoryTag(lid);
-    card.dataset.ltype = ({ park:'recover', zao:'recover', clinic:'recover', gym:'recover', noodle:'recover', bookstore:'story', observatory:'story', radio:'story', metro:'story', tower:'work', partjob:'work', pawnshop:'story' })[lid] || 'recover';
+    card.dataset.ltype = ({ park:'recover', zao:'recover', clinic:'recover', gym:'recover', noodle:'recover', bookstore:'story', observatory:'story', radio:'story', metro:'story', tower:'work', partjob:'work', pawnshop:'story', store:'recover' })[lid] || 'recover';
     card.innerHTML=`<div class="ic"><span class="licon">${lIcon(lid)}</span></div><div class="nm">${a.name.replace('\n','<br>')}</div>`
       +`${tag?`<div class="lifeTag">${tag}</div>`:''}`
       +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
@@ -1026,6 +1026,10 @@ function doLife(lid){
     let pre=null;
     const DS=window.DAY_SCENE;
     if(DS && DS.get){ try{ pre=DS.get('pawnshop',G); }catch(e){ pre=null; } }
+    /* 串门层(v2.17):柜台上除了当票,还有闲话(鱼骨)与库房的传话(3409)。 */
+    const chats=[window.chatPage&&chatPage('yu',G), window.chatPage&&chatPage('r3409',G)]
+      .filter(Boolean).map(c=>({ who:c.who, text:c.text }));
+    if(chats.length) pre=(pre||[]).concat(chats);
     const open=()=>openPawn(()=>startDay());
     if(pre && pre.length) runPages(pre, open); else open();
     return;
@@ -1081,6 +1085,9 @@ function unionScene(){
     G.mood=clamp(G.mood+1,0,100);
   }
   applyMood();
+  /* 串门层(v2.17):守望者只在认识你之后开口(bond≥1;不与陌生人说话)。 */
+  const gchat=window.chatPage&&chatPage('guardian',G);
+  if(gchat) pages=pages.concat([{ who:'guardian', text:gchat.text }]);
   const uext=(window.LIFE_EXTRA&&LIFE_EXTRA.metro)||null;
   if(uext) pages=pages.concat(uext);
   runPages(pages, ()=>startDay());
