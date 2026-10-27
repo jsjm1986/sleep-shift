@@ -1145,6 +1145,397 @@ Object.assign(builders, {
   };
 })();
 
+/* v2.6 美术升级第三批:剩余 9 张场景全部重做(标注墙/浅海/隔夜池/实验室/服务间/顶层/云梯塔/天台/典当行) */
+Object.assign(builders, {
+
+  /* 语义采集·供体池:标注墙(面板×9,红框/通过/驳回) + 工位 + 扫描线 */
+  annot(){
+    const r=rng(101);
+    const l1=glow('g-an-l1',195,120,170,'#5A8FB8',.3);
+    const scan=glow('g-an-scan',195,286,90,'#38F2D8',.14);
+    const d=`<defs>
+      <linearGradient id="g-an-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0B1220"/><stop offset="100%" stop-color="#070C16"/>
+      </linearGradient>
+      ${l1.def}${scan.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-an-air)"/>
+    ${l1.use}
+    ${(() => {
+      let s = '';
+      const states = ['ok','ok','reject','ok','face','reject','ok','ok','face'];
+      for (let i = 0; i < 9; i++) {
+        const x = 42 + (i % 3) * 108, y = 66 + Math.floor(i / 3) * 108;
+        const st = states[i];
+        let inner = `<rect x="${x}" y="${y}" width="88" height="92" rx="4" fill="#101A30" stroke="#22345A" stroke-width="1.4"/>
+          <ellipse cx="${x + 44}" cy="${y + 38}" rx="17" ry="21" fill="#1B2A48"/>
+          <rect x="${x + 14}" y="${y + 68}" width="60" height="4" rx="2" fill="#22345A"/>
+          <rect x="${x + 14}" y="${y + 77}" width="38" height="4" rx="2" fill="#1B2A48"/>`;
+        if (st === 'face') inner += `<rect x="${x + 27}" y="${y + 17}" width="34" height="42" fill="none" stroke="#38F2D8" stroke-width="1.2" opacity=".8"/><rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#38F2D8" opacity=".55"/>`;
+        if (st === 'reject') inner += `<rect x="${x + 27}" y="${y + 17}" width="34" height="42" fill="none" stroke="#FF6B5E" stroke-width="1.2" opacity=".8"/><path d="M${x + 30} ${y + 14} L${x + 58} ${y + 62}" stroke="#FF6B5E" stroke-width="2" opacity=".75"/><rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#FF6B5E" opacity=".5"/>`;
+        if (st === 'ok') inner += `<rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#4A9E6E" opacity=".6"/>`;
+        s += inner;
+      }
+      return s;
+    })()}
+    ${scan.use}
+    <rect x="0" y="430" width="${W}" height="10" fill="#0C1322"/>
+    <rect x="0" y="440" width="${W}" height="160" fill="#080D18"/>
+    <rect x="70" y="398" width="110" height="34" rx="3" fill="#0E1626" stroke="#22345A"/>
+    <rect x="80" y="406" width="40" height="3" rx="1.5" fill="#38F2D8" opacity=".5"/>
+    <rect x="80" y="414" width="26" height="3" rx="1.5" fill="#38F2D8" opacity=".3"/>
+    <rect x="222" y="398" width="110" height="34" rx="3" fill="#0E1626" stroke="#22345A"/>
+    <rect x="232" y="406" width="40" height="3" rx="1.5" fill="#FF6B5E" opacity=".5"/>
+    <rect x="232" y="414" width="26" height="3" rx="1.5" fill="#FF6B5E" opacity=".3"/>
+    <path d="M40 470 C40 442 66 436 78 452 L78 470 Z" fill="#0E1626"/>
+    <g stroke="#141E36" stroke-width="2" opacity=".9">
+      <path d="M0 452 C60 444 90 452 130 452"/><path d="M200 452 C260 444 330 452 390 452"/>
+    </g>`;
+    return svg('annot', '', d);
+  },
+
+  /* 感知渲染·浅海:落日海面 + 光路 + 渲染框 + 城市远灯 */
+  render(){
+    const r=rng(112);
+    const sun=glow('g-ren-sun',195,286,120,'#FFE8B8',.75);
+    const path=glow('g-ren-path',195,440,60,'#FFD9A0',.4);
+    const d=`<defs>
+      <linearGradient id="g-ren-sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2E2444"/><stop offset="40%" stop-color="#8A4A58"/><stop offset="72%" stop-color="#D9825A"/><stop offset="100%" stop-color="#FFD9A0"/>
+      </linearGradient>
+      <linearGradient id="g-ren-sea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#20355C"/><stop offset="100%" stop-color="#101A34"/>
+      </linearGradient>
+      ${sun.def}${path.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-ren-sky)"/>
+    <circle cx="195" cy="286" r="52" fill="#FFEFC8"/>
+    ${sun.use}
+    <g fill="#FFD9A0">
+      <rect x="20" y="296" width="3" height="3" opacity=".8"/><rect x="52" y="300" width="2.4" height="2.4" opacity=".6"/>
+      <rect x="330" y="298" width="3" height="3" opacity=".7"/><rect x="358" y="294" width="2.4" height="2.4" opacity=".5"/>
+      <rect x="88" y="298" width="2" height="2" opacity=".5"/>
+    </g>
+    <rect x="0" y="304" width="${W}" height="${H - 304}" fill="url(#g-ren-sea)"/>
+    ${path.use}
+    <g stroke="#FFD9A0" opacity=".5">
+      <line x1="165" y1="316" x2="225" y2="316" stroke-width="2.4"/>
+      <line x1="150" y1="342" x2="240" y2="342" stroke-width="2"/>
+      <line x1="132" y1="378" x2="258" y2="378" stroke-width="1.8"/>
+      <line x1="112" y1="424" x2="278" y2="424" stroke-width="1.6"/>
+      <line x1="92" y1="480" x2="298" y2="480" stroke-width="1.4"/>
+    </g>
+    <g stroke="#8FB8D8" opacity=".35" fill="none">
+      <path d="M0 330 C60 326 130 334 195 330 C260 326 330 334 390 330"/>
+      <path d="M0 380 C70 376 140 384 195 380 C260 376 320 384 390 380"/>
+      <path d="M0 436 C70 432 140 440 195 436 C260 432 320 440 390 436"/>
+      <path d="M0 520 C70 516 140 524 195 520 C260 516 320 524 390 520"/>
+    </g>
+    <g>
+      <rect x="252" y="330" width="96" height="72" fill="none" stroke="#DFF6F2" stroke-width="2.4" opacity=".9"/>
+      <rect x="256" y="334" width="88" height="64" fill="#2E5E8A" opacity=".35"/>
+      <path d="M256 380 C280 372 320 388 344 378" stroke="#DFF6F2" stroke-width="1.4" fill="none" opacity=".7"/>
+      <circle cx="300" cy="352" r="10" fill="#FFEFC8" opacity=".8"/>
+      <rect x="252" y="322" width="44" height="8" rx="2" fill="#0D1526" opacity=".8"/>
+    </g>
+    <rect x="20" y="470" width="12" height="90" fill="#0A1020"/>
+    <rect x="10" y="464" width="32" height="8" rx="3" fill="#0C1322"/>
+    <rect x="352" y="500" width="12" height="70" fill="#0A1020"/>`;
+    return svg('render', '', d);
+  },
+
+  /* 情绪算力·隔夜池:曲面屏墙(蜡烛) + 交易桌 + 城市夜窗 */
+  finance(){
+    const r=rng(123);
+    const wall=glow('g-fin-wall',195,240,190,'#1E3A5C',.5);
+    const lamp=glow('g-fin-lamp',70,430,60,'#E8B96B',.3);
+    const d=`<defs>
+      <linearGradient id="g-fin-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0A0F22"/><stop offset="100%" stop-color="#060A16"/>
+      </linearGradient>
+      ${wall.def}${lamp.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-fin-air)"/>
+    ${wall.use}
+    <g stroke="#16233E" stroke-width="1">
+      <line x1="0" y1="96" x2="390" y2="96"/><line x1="0" y1="168" x2="390" y2="168"/><line x1="0" y1="240" x2="390" y2="240"/><line x1="0" y1="312" x2="390" y2="312"/>
+      <line x1="65" y1="40" x2="65" y2="360"/><line x1="130" y1="40" x2="130" y2="360"/><line x1="195" y1="40" x2="195" y2="360"/><line x1="260" y1="40" x2="260" y2="360"/><line x1="325" y1="40" x2="325" y2="360"/>
+    </g>
+    ${(() => {
+      let s = ''; const rr = rng(9);
+      let base = 150;
+      for (let i = 0; i < 14; i++) {
+        const x = 22 + i * 26;
+        const up = rr() > 0.42;
+        const bodyH = 14 + rr() * 26;
+        const yTop = base - bodyH * (up ? 0.25 : 0.75);
+        const col = up ? '#3FBF8F' : '#E85A5A';
+        s += `<line x1="${x + 7}" y1="${yTop - 12}" x2="${x + 7}" y2="${yTop + bodyH + 12}" stroke="${col}" stroke-width="1.2" opacity=".85"/>`;
+        s += `<rect x="${x}" y="${yTop}" width="14" height="${bodyH}" fill="${col}" opacity=".9"/>`;
+        base += (up ? -14 : 10) + (rr() - 0.5) * 16;
+        base = Math.max(120, Math.min(300, base));
+      }
+      return s;
+    })()}
+    <path d="M20 200 C80 176 140 208 195 172 C250 140 310 156 372 120" stroke="#FFD166" stroke-width="1.6" fill="none" opacity=".8"/>
+    <rect x="0" y="392" width="${W}" height="10" fill="#0C1226"/>
+    <rect x="0" y="402" width="${W}" height="198" fill="#080C18"/>
+    <g fill="#0E1730" stroke="#22345A">
+      <rect x="36" y="356" width="110" height="40" rx="3"/>
+      <rect x="248" y="356" width="110" height="40" rx="3"/>
+    </g>
+    <rect x="46" y="364" width="52" height="3" rx="1.5" fill="#3FBF8F" opacity=".6"/>
+    <rect x="46" y="372" width="36" height="3" rx="1.5" fill="#E85A5A" opacity=".5"/>
+    <rect x="258" y="364" width="52" height="3" rx="1.5" fill="#FFD166" opacity=".6"/>
+    <rect x="258" y="372" width="36" height="3" rx="1.5" fill="#3FBF8F" opacity=".4"/>
+    ${lamp.use}
+    <g fill="#FFD9A0" opacity=".5">
+      <rect x="130" y="436" width="3" height="3"/><rect x="180" y="452" width="2.4" height="2.4"/><rect x="240" y="440" width="3" height="3"/><rect x="300" y="460" width="2.4" height="2.4"/>
+    </g>`;
+    return svg('finance', '', d);
+  },
+
+  /* 折叠直觉·生物池:蛋白缎带 + 分子中心 + 样本架 + 冷窗 */
+  lab(){
+    const r=rng(134);
+    const core=glow('g-lab-core',195,210,130,'#7FE8C8',.4);
+    const d=`<defs>
+      <linearGradient id="g-lab-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0A141E"/><stop offset="100%" stop-color="#060C12"/>
+      </linearGradient>
+      ${core.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-lab-air)"/>
+    ${core.use}
+    <path d="M60 160 C110 120 160 190 195 160 C230 130 280 200 330 160" stroke="#7FE8C8" stroke-width="5" fill="none" opacity=".9"/>
+    <path d="M60 172 C110 132 160 202 195 172 C230 142 280 212 330 172" stroke="#3FA88C" stroke-width="5" fill="none" opacity=".7"/>
+    <circle cx="195" cy="210" r="22" fill="#BFF2E0"/>
+    <circle cx="195" cy="210" r="30" fill="none" stroke="#7FE8C8" stroke-width="1.2" opacity=".7"/>
+    ${(() => { let s = ''; const rr = rng(5); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; const x = 195 + Math.cos(a) * 56, y = 210 + Math.sin(a) * 56; s += `<line x1="195" y1="210" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#5AC8B0" stroke-width="1.6" opacity=".8"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#7FE8C8" opacity=".9"/>`; } return s; })()}
+    <g>
+      <rect x="286" y="330" width="104" height="150" fill="#0F1E2A"/>
+      <rect x="296" y="344" width="84" height="60" fill="#12242E"/>
+      <path d="M296 404 L380 404" stroke="#1E3A44" stroke-width="3"/>
+      <rect x="300" y="412" width="18" height="52" fill="#0A141C"/>
+      <rect x="326" y="412" width="18" height="52" fill="#0A141C"/>
+    </g>
+    <g>
+      <rect x="24" y="470" width="110" height="8" rx="3" fill="#12202C"/>
+      <rect x="30" y="478" width="98" height="30" fill="#0E1A24"/>
+      ${(() => { let s = ''; const cols = ['#7FE8C8','#5AB8E8','#E8D85A','#D86A9E','#9E7FE8']; for (let i = 0; i < 5; i++) { const x = 38 + i * 20; s += `<rect x="${x}" y="452" width="12" height="52" rx="5" fill="#1A2C38"/><rect x="${x + 2.4}" y="${472 + (i % 2) * 6}" width="7.2" height="${32 - (i % 2) * 6}" rx="3" fill="${cols[i]}" opacity=".9"/>`; } return s; })()}
+    </g>
+    <rect x="0" y="508" width="${W}" height="8" fill="#12202C"/>
+    <rect x="0" y="516" width="${W}" height="84" fill="#0A141C"/>
+    <text x="195" y="470" font-family="ui-monospace,monospace" font-size="10" fill="#3FA88C" text-anchor="middle" letter-spacing="2" opacity=".8">临床级 · 保密协议已签署</text>`;
+    return svg('lab', '', d);
+  },
+
+  /* 服务间:服务器通道(透视) + 数据线 + 带头枕的椅子 */
+  service(){
+    const r=rng(145);
+    const l1=glow('g-svc-l1',195,100,150,'#5A8FD8',.25);
+    const d=`<defs>
+      <linearGradient id="g-svc-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0A0C18"/><stop offset="100%" stop-color="#05070F"/>
+      </linearGradient>
+      ${l1.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-svc-air)"/>
+    ${l1.use}
+    ${(() => {
+      let s = '';
+      for (let i = 0; i < 5; i++) {
+        const lh = 210 - i * 34, lw = 78 - i * 12;
+        const ly = 120 + i * 44, lx = 24 + i * 16;
+        const rx = 390 - lx - lw;
+        s += `<rect x="${lx}" y="${ly}" width="${lw}" height="${lh}" fill="#0D1224" stroke="#1C2542" stroke-width="1.4"/>`;
+        s += `<rect x="${390 - lx - lw}" y="${ly}" width="${lw}" height="${lh}" fill="#0D1224" stroke="#1C2542" stroke-width="1.4"/>`;
+        for (let u = 0; u < 6; u++) {
+          const uy = ly + 16 + u * (lh - 30) / 6;
+          s += `<rect x="${lx + 8}" y="${uy}" width="${lw - 16}" height="${(lh - 40) / 6}" rx="2" fill="#111A34"/>`;
+          s += `<rect x="${390 - lx - lw + 8}" y="${uy}" width="${lw - 16}" height="${(lh - 40) / 6}" rx="2" fill="#111A34"/>`;
+          s += `<circle cx="${lx + 14}" cy="${uy + (lh - 40) / 12}" r="1.6" fill="${i % 2 ? '#38F2D8' : '#FF4FD8'}" opacity=".85"/>`;
+          s += `<circle cx="${390 - lx - lw + 14}" cy="${uy + (lh - 40) / 12}" r="1.6" fill="${i % 2 ? '#FF4FD8' : '#38F2D8'}" opacity=".85"/>`;
+        }
+      }
+      return s;
+    })()}
+    <g stroke="#141C38" stroke-width="2" opacity=".8">
+      <line x1="120" y1="500" x2="150" y2="560"/><line x1="270" y1="500" x2="240" y2="560"/>
+    </g>
+    <g>
+      <rect x="168" y="398" width="54" height="14" rx="7" fill="#1C2542"/>
+      <line x1="186" y1="412" x2="182" y2="452" stroke="#1C2542" stroke-width="7"/>
+      <path d="M160 452 L212 452 L204 486 L168 486 Z" fill="#151A34"/>
+      <line x1="170" y1="486" x2="164" y2="520" stroke="#1C2542" stroke-width="6"/>
+      <line x1="202" y1="486" x2="208" y2="520" stroke="#1C2542" stroke-width="6"/>
+    </g>
+    <path d="M182 420 C182 448 190 470 186 492" stroke="#2A3352" stroke-width="2.2" fill="none"/>
+    <circle cx="186" cy="494" r="3.2" fill="#38F2D8" opacity=".85"/>`;
+    return svg('service', '', d);
+  },
+
+  /* 88层顶层:落地窗外城市在脚下 + 香槟与剪影 */
+  penthouse(){
+    const r=rng(156);
+    const room=glow('g-pen-room',195,300,200,'#C89A5A',.28);
+    const d=`<defs>
+      <linearGradient id="g-pen-win" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0A0E22"/><stop offset="70%" stop-color="#131A38"/><stop offset="100%" stop-color="#2A2038"/>
+      </linearGradient>
+      ${room.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="#171018"/>
+    <rect x="34" y="60" width="322" height="380" fill="url(#g-pen-win)"/>
+    ${stars(r,20,140)}
+    <g>
+      <rect x="50" y="240" width="34" height="200" fill="#0C1128"/>
+      <rect x="96" y="200" width="42" height="240" fill="#0E1330"/>
+      <rect x="150" y="256" width="30" height="184" fill="#0C1128"/>
+      <rect x="192" y="216" width="46" height="224" fill="#0E1330"/>
+      <rect x="250" y="236" width="36" height="204" fill="#0C1128"/>
+      <rect x="298" y="192" width="44" height="248" fill="#0E1330"/>
+      ${windows(r,16,220,420,'#FFD9A0',.55)}
+      <rect x="192" y="216" width="46" height="4" fill="#FF5A5A" opacity=".7"/>
+    </g>
+    <rect x="28" y="54" width="334" height="392" fill="none" stroke="#3A2E20" stroke-width="8"/>
+    <line x1="195" y1="54" x2="195" y2="446" stroke="#3A2E20" stroke-width="6"/>
+    ${room.use}
+    <g fill="#E8C46B" opacity=".92">
+      <path d="M128 356 L134 356 L132 380 L130 380 Z"/>
+      <rect x="129.4" y="380" width="3" height="14"/><rect x="124" y="394" width="14" height="3" rx="1.4"/>
+      <path d="M146 352 L152 352 L150 378 L148 378 Z"/>
+      <rect x="147.4" y="378" width="3" height="14"/><rect x="142" y="392" width="14" height="3" rx="1.4"/>
+    </g>
+    <g fill="#0D1226">
+      <circle cx="86" cy="372" r="11"/>
+      <path d="M70 446 C72 392 100 392 102 446 Z"/>
+      <circle cx="262" cy="366" r="11"/>
+      <path d="M246 446 C248 390 276 390 278 446 Z"/>
+    </g>
+    <rect x="0" y="446" width="${W}" height="154" fill="#1A1410"/>
+    <path d="M0 446 L390 446 L390 470 L0 470 Z" fill="#241C14"/>`;
+    return svg('penthouse', '', d);
+  },
+
+  /* 云梯塔:41层塔身亮窗 + 天线缆 + 三层城市 + 顶灯 */
+  tower(){
+    const r=rng(46);
+    const l1=glow('g-tow-l1',195,84,160,'#8FB8D8',.3);
+    const d=`<defs>
+      <linearGradient id="g-tow-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0B1020"/><stop offset="100%" stop-color="#070A16"/>
+      </linearGradient>
+      <linearGradient id="g-tow-body" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2A3352"/><stop offset="100%" stop-color="#161C36"/>
+      </linearGradient>
+      ${l1.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-tow-air)"/>
+    ${stars(r,30,150)}
+    ${l1.use}
+    <path d="${skyline(rng(11),H-60,80,150,24,46)}" fill="#121A32" opacity=".9"/>
+    <rect x="152" y="150" width="86" height="420" fill="url(#g-tow-body)"/>
+    <rect x="146" y="142" width="98" height="12" rx="2" fill="#20283F"/>
+    ${windows(r,14,170,520,'#8FB8FF',.5)}
+    <g stroke="#1C2542" stroke-width="1.6" opacity=".9">
+      <line x1="152" y1="220" x2="238" y2="220"/><line x1="152" y1="300" x2="238" y2="300"/><line x1="152" y1="380" x2="238" y2="380"/><line x1="152" y1="460" x2="238" y2="460"/>
+    </g>
+    <rect x="191" y="96" width="8" height="48" fill="#20283F"/>
+    <circle cx="195" cy="90" r="4" fill="#FF5A5A"/>
+    <path d="M153 150 L120 96 M237 150 L270 96" stroke="#1C2542" stroke-width="1.6" fill="none"/>
+    <path d="${skyline(rng(21),H-20,60,110,28,54)}" fill="#0D1326"/>
+    ${windows(r,20,470,560,'#8FB8FF',.35)}
+    <rect x="70" y="20" width="110" height="8" rx="4" fill="#8FB8D8" opacity=".6"/>
+    <ellipse cx="195" cy="580" rx="150" ry="26" fill="#121A32" opacity=".8"/>`;
+    return svg('tower', '', d);
+  },
+
+  /* 天台:晚霞 + 天际线 + 两位剪影(天线/水塔/晾衣绳) */
+  zao(){
+    const r=rng(57);
+    const sun=glow('g-zao-sun',195,336,110,'#FFE8B8',.85);
+    const d=`<defs>
+      <linearGradient id="g-zao-sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2A2044"/><stop offset="45%" stop-color="#7A3E58"/><stop offset="75%" stop-color="#D87850"/><stop offset="100%" stop-color="#FFAE64"/>
+      </linearGradient>
+      ${sun.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-zao-sky)"/>
+    <circle cx="195" cy="336" r="46" fill="#FFF3D0"/>
+    ${sun.use}
+    <path d="${skyline(rng(13),H-118,70,150,26,48)}" fill="#4A2E4E" opacity=".9"/>
+    ${windows(r,16,H-180,H-130,'#FFD9A0',.5)}
+    <path d="${skyline(rng(29),H-40,50,100,30,58)}" fill="#2E1E3E"/>
+    ${windows(r,22,H-100,H-46,'#FFD9A0',.4)}
+    <g fill="#241A34">
+      <rect x="52" y="436" width="18" height="26"/>
+      <path d="M48 436 L70 436 L66 412 L52 412 Z"/>
+      <line x1="61" y1="412" x2="61" y2="396"/>
+      <line x1="320" y1="440" x2="320" y2="404"/><line x1="308" y1="404" x2="332" y2="404"/><line x1="308" y1="404" x2="320" y2="440"/><line x1="332" y1="404" x2="320" y2="440"/>
+    </g>
+    <path d="M240 420 C280 428 330 424 372 418" stroke="#241A34" stroke-width="1.6" fill="none"/>
+    <rect x="272" y="420" width="3" height="12" fill="#241A34"/>
+    <rect x="330" y="424" width="3" height="10" fill="#241A34"/>
+    <rect x="0" y="524" width="${W}" height="12" fill="#1A1028"/>
+    <rect x="0" y="536" width="${W}" height="64" fill="#140C20"/>
+    <g fill="#0D1226">
+      <circle cx="150" cy="470" r="10"/>
+      <path d="M136 524 C138 484 164 484 166 524 Z"/>
+      <circle cx="222" cy="474" r="10"/>
+      <path d="M208 524 C210 488 236 488 238 524 Z"/>
+    </g>
+    <rect x="182" y="500" width="7" height="18" rx="3" fill="#FF9F5A"/>
+    <rect x="240" y="504" width="7" height="16" rx="3" fill="#FF9F5A" opacity=".85"/>`;
+    return svg('zao', '', d);
+  },
+
+  /* 典当行:暖灯 + 吊牌串 + 戥子 + 抽屉墙(深化) */
+  pawn(){
+    const r=rng(68);
+    const l1=glow('g-pw-l1',195,80,170,'#E8B96B',.45);
+    const d=`<defs>
+      <linearGradient id="g-pw-air" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#241A0E"/><stop offset="100%" stop-color="#140E06"/>
+      </linearGradient>
+      ${l1.def}
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#g-pw-air)"/>
+    ${l1.use}
+    <g>
+      <rect x="0" y="120" width="${W}" height="330" fill="#1A1208"/>
+      ${(() => {
+        let s = '';
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 4; col++) {
+            const x = 44 + col * 82, y = 150 + row * 80;
+            s += `<rect x="${x}" y="${y}" width="76" height="66" rx="3" fill="#2E2212" stroke="#4A3822" stroke-width="1.4"/>`;
+            s += `<circle cx="${x + 38}" cy="${y + 40}" r="3.6" fill="#6B5230"/><rect x="${x + 25}" y="${y + 14}" width="26" height="10" rx="2" fill="#8A7248" opacity=".7"/>`;
+          }
+        }
+        return s;
+      })()}
+    </g>
+    <path d="M20 96 C120 112 280 112 372 94" stroke="#5A4426" stroke-width="1.8" fill="none"/>
+    ${(() => {
+      let s = ''; const xs = [64, 148, 238, 322];
+      for (const x of xs) { s += `<line x1="${x}" y1="102" x2="${x}" y2="122" stroke="#5A4426" stroke-width="1.4"/><rect x="${x - 15}" y="122" width="30" height="20" rx="2" fill="#D8C8A0"/><rect x="${x - 9}" y="128" width="18" height="2.6" rx="1.3" fill="#6B5230"/><rect x="${x - 9}" y="134" width="12" height="2.6" rx="1.3" fill="#6B5230"/>`; }
+      return s;
+    })()}
+    <rect x="0" y="460" width="${W}" height="12" fill="#4A3822"/>
+    <rect x="0" y="472" width="${W}" height="128" fill="#332718"/>
+    <g>
+      <rect x="196" y="430" width="90" height="30" rx="3" fill="#2E2212" stroke="#4A3822"/>
+      <line x1="241" y1="404" x2="241" y2="430" stroke="#8A7248" stroke-width="2.4"/>
+      <line x1="206" y1="404" x2="276" y2="404" stroke="#8A7248" stroke-width="2.4"/>
+      <path d="M198 404 A43 20 0 0 0 284 404" stroke="#C9A24B" stroke-width="2" fill="none"/>
+      <circle cx="206" cy="404" r="3" fill="#C9A24B"/><circle cx="276" cy="404" r="3" fill="#C9A24B"/>
+    </g>`;
+    return svg('pawn', '', d);
+  },
+});
+
 return { build, keys:Object.keys(builders) };
+
 
 })();
