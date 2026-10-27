@@ -578,12 +578,29 @@ function showMorning(){
 }
 
 function glitchBase(){
-  if(G.flags.T9) return 5;
-  if(G.flags.T6) return 4;
-  if(G.flags.T5) return 3;
-  if(G.flags.T3||G.flags.T4) return 2;
-  if(G.flags.T1||G.flags.T2) return 1;
-  return 0;
+  let b=0;
+  if(G.flags.T9) b=5;
+  else if(G.flags.T6) b=4;
+  else if(G.flags.T5) b=3;
+  else if(G.flags.T3||G.flags.T4) b=2;
+  else if(G.flags.T1||G.flags.T2) b=1;
+  /* 路线偏置:真相主导——你见过的东西让信号不稳(+1);
+     体制主导——系统信任你,连夜把画面"调稳"(-1)。手感级差异,玩到才看得见。 */
+  const ax=domAxis(2);
+  if(ax==='zhen') b+=1;
+  else if(ax==='zhi') b=Math.max(0,b-1);
+  return b;
+}
+
+/* 路线显影:主导轴(≥min 才显影;并列按 体制>真相>人性 —— 与 D22/D26 路线回响同一优先序)。 */
+function domAxis(min=2){
+  const r=G.route||{ren:0,zhen:0,zhi:0};
+  const m=Math.max(r.ren,r.zhen,r.zhi);
+  if(m<min) return null;
+  if(r.zhi===m) return 'zhi';
+  if(r.zhen===m) return 'zhen';
+  if(r.ren===m) return 'ren';
+  return null;
 }
 
 function afterMorning(){
@@ -1643,7 +1660,7 @@ function settleContract(){
       taintedList().slice(0,2).forEach(id=>{
         nodes.push({type:'purify',name:'污染体 · '+memName(id),tainted:id});
       });
-      if(Math.random()<0.5) nodes.push({type:'echo', id:rnd(Object.keys(ECHOES))});
+      if(Math.random()<0.5) nodes.push({type:'echo', id:pickEchoId()});
       if(Math.random()<0.35) nodes.push({type:'chase', n:3, name:'逃逸污染体'});
       if(Math.random()<0.6) nodes.push({type:'collect', n:2+Math.floor(Math.random()*2)});
       startDream({ theme:c.dream, title:'云背 · 意外', nodes });
@@ -1759,6 +1776,40 @@ function nextDay(){
 }
 
 /* ================= 梦境 ================= */
+/* 路线显影·夜:三条线走到深处,海里的东西就不一样了。
+   你走哪条线,决定你"容易注意到"什么——回声按权重 3:1 偏置(其余照常出现),
+   入水前池子读你一次(路线戳),梦境频道的观众也看得见你的路线(弹幕)。 */
+const ECHO_BIAS={
+  ren:{ wedding:3, mother:3, dog:3, gift:3 },   /* 人性 → 你总在捞"人":联结 */
+  zhen:{ snow:3, betrayal:3, traffic:3 },        /* 真相 → 你总在数"裂缝":异常 */
+  zhi:{ lullaby:3, wedding:2, gift:2 }           /* 体制 → 池子喂你什么你收什么:整齐 */
+};
+const ROUTE_STAMP={
+  ren:'回声透过率偏高 · 该机架总在捞「人」',
+  zhen:'异常检出率偏高 · 该机架总在数「裂缝」',
+  zhi:'数据洁净度 AAA · 该机架的梦最「整齐」'
+};
+const ROUTE_DM={
+  ren:['这集怎么全是人', '那个给狗揉耳朵的是谁啊', '都是人的梦,好催泪'],
+  zhen:['暂停!背景里是不是有网格', '30:12 有帧 bug 谁修一下', '这片海是重复使用的素材吧'],
+  zhi:['这梦好干净,像样板间', '零瑕疵,无聊', '画质稳,已三连']
+};
+function pickEchoId(){
+  const ax=domAxis(2);
+  const bias=ax?ECHO_BIAS[ax]:null;
+  const pool=[];
+  Object.keys(ECHOES).forEach(id=>{
+    const w=(bias&&bias[id])?3:1;
+    for(let i=0;i<w;i++) pool.push(id);
+  });
+  return rnd(pool);
+}
+function pickDanmaku(){
+  const ax=domAxis(3);
+  if(ax&&ROUTE_DM[ax]&&Math.random()<0.4) return rnd(ROUTE_DM[ax]);
+  return rnd(DANMAKU);
+}
+
 function startDream(spec){
   setScene(null);
   if(window.AUDIO && AUDIO.setAmbient) AUDIO.setAmbient(72,108,.034);
@@ -1766,6 +1817,9 @@ function startDream(spec){
   setGlitch(Math.max(glitchBase(), spec.theme==='core'?3:1));
   app.innerHTML=hudHTML();
   app.appendChild(h('div','',`<div class="dayTag">CLOUDBACK · ${spec.theme==='ledger'?'LEDGER':spec.theme==='metro'?'METRO':spec.theme==='core'?'CORE':'SEA'}</div><div class="dayTitle gl-text" data-t="${spec.title}">${spec.title}</div>`));
+  /* 入水之前,池子先读你一次。主导轴≥2 才显影;核心与终局夜不贴(那是它给你看的夜,不是它审你的夜)。 */
+  const rax=(spec.theme!=='core'&&!spec.ending)?domAxis(2):null;
+  if(rax&&ROUTE_STAMP[rax]) app.appendChild(h('div','dreamRoute',ROUTE_STAMP[rax]));
   const stage=h('div','dreamStage');
   app.appendChild(stage);
   /* 操作提示必须与当前节点一致,并且放在舞台上方。
@@ -1816,7 +1870,7 @@ function startDream(spec){
        否则 #danmaku 是 body 上的常驻层,弹幕会一直飘在标题页上面且永不停止。 */
     if(!G || !G.flags.danmaku) return;
     if(!stage.isConnected) return;
-    const dm=h('div','dm',rnd(DANMAKU));
+    const dm=h('div','dm',pickDanmaku());
     dm.style.top=(8+Math.random()*70)+'%';
     dm.style.animationDuration=(7+Math.random()*7)+'s';
     $('#danmaku').appendChild(dm);

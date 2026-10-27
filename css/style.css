@@ -282,6 +282,11 @@ body.night .hud .warn{ color:#FF8A8E; }
   margin-top:8px; opacity:.85;
 }
 body.night .dayTitle::after{ background:var(--accent); }
+/* 路线显影:池子在入水前读你一次(mono 小字,像批注,不抢戏) */
+.dreamRoute{
+  font-family:var(--f-sys); font-size:10px; letter-spacing:.14em;
+  color:var(--ink2); opacity:.78; margin:-4px 2px 8px;
+}
 
 /* ---------- 合同卡:排班票券 ---------- */
 .cards{ display:flex; flex-direction:column; gap:12px; }
