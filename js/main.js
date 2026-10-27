@@ -853,7 +853,7 @@ function startDay(){
       <div class="cdesc">已签署。今夜生效。</div>
       <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[G.contract]||'—'}×10⁹ 突触秒 / 夜</div>
       <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
-      <div class="cNote">${p.af?`已含加签 · ${p.af.name} · `:''}入睡本身损耗情绪 −3 · 实到手 = 卡面分成 × 当夜数据质量(情绪差、忘得多都会打折,最低 8 折)</div>`;
+      <div class="cNote">${p.af?`已含加签 · ${p.af.name} · `:''}入睡本身损耗情绪 −3 · 实到手 = 卡面分成 × 当夜数据质量(情绪差、忘得多都会打折,最低 8 折)</div>`;
     const re=mkBtn('改签','meek',()=>{ G.contract=null; startDay(); });
     card.appendChild(re);
     cwrap.appendChild(card);
@@ -893,7 +893,7 @@ function startDay(){
         <div class="cdesc">${c.desc}</div>
         <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[cid]||'—'}×10⁹ 突触秒 / 夜</div>
         <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
-        <div class="cNote">${c.id==='finance'?'金融分成 0.6–1.4× 随机 · ':''}入睡本身损耗情绪 −3 · 实到手 = 卡面报酬 × 当夜数据质量(最低 8 折;评分规则见晨间读数旁的 i)</div>
+        <div class="cNote">${c.id==='finance'?'金融分成 0.6–1.4× 随机 · ':''}入睡本身损耗情绪 −3 · 实到手 = 卡面报酬 × 当夜数据质量(最低 8 折;评分规则见晨间读数旁的 i)</div>
         <div class="riskBar"><i style="width:${Math.min(100,c.risk*3)}%"></i></div>`;
       card.setAttribute('aria-label',`${c.name},${c.desc.replace(/\n+/g,' ')}`);
       bindActivate(card,()=>{ AUDIO.SFX.soft(); openContract(cid); });
@@ -2618,7 +2618,7 @@ function showEnding(id){
    这里写的是它怎么给你"定性"——人性记损耗,真相归档不复核,体制推荐为样版。
    与结局无关,贴在所有终局档案之后:无论你去了哪里,结论都由它写。 */
 const ROUTE_VERDICT={
-  ren:'该机架三十天的产出里,混入了大量无法计价的内容:人、名字、等待。\n\n已按「损耗」处理。',
+  ren:'该机架三十天的产出里,混入了大量无法计价的内容:人、名字、等\u00A0待。\n\n已按「损耗」处理。',
   zhen:'该机架看见了全部结构,并保留了下来。\n\n此现象不可复现,不可解释。已归档,不再复核。',
   zhi:'三十天,零异常,零申诉。该机架是全片区的基准线。\n\n已推荐:新机架以它的梦为出厂样版。'
 };

@@ -277,11 +277,11 @@ body.night .hud .warn{ color:#FF8A8E; }
   font-size:30px; letter-spacing:.3em; margin:2px 0 10px;
 }
 /* 白天 hub 的标题下压一条公文红线 */
-.dayTitle::after{
+.dayTitle:not(.gl-text)::after{
   content:''; display:block; width:44px; height:3px; background:var(--seal);
   margin-top:8px; opacity:.85;
 }
-body.night .dayTitle::after{ background:var(--accent); }
+body.night .dayTitle:not(.gl-text)::after{ background:var(--accent); }
 /* 路线显影:池子在入水前读你一次(mono 小字,像批注,不抢戏) */
 .dreamRoute{
   font-family:var(--f-sys); font-size:10px; letter-spacing:.14em;
@@ -657,7 +657,7 @@ body.gl3 #scanlines{ opacity:.9; }
   flex:1; border:1px solid var(--line); background:transparent; color:var(--ink2);
   border-radius:10px; padding:9px 0; font-family:inherit; font-size:13.5px; letter-spacing:.15em; cursor:pointer;
 }
-.codexTab.on{ background:linear-gradient(120deg,var(--accent),var(--accent3)); color:#fff; border:none; font-weight:700; }
+.codexTab.on{ background:var(--accent3); color:#FFFDF7; border:none; font-weight:700; }
 .codexBody{ overflow-y:auto; flex:1; min-height:200px; max-height:60vh; padding-bottom:6px; }
 .codexRow{ margin-top:8px; padding:12px 14px; }
 .codexRow .cn{ font-weight:700; font-size:15px; margin-bottom:4px; }
@@ -672,6 +672,7 @@ body.gl3 #scanlines{ opacity:.9; }
 .epistats{ margin-top:6vh; font-size:13px; line-height:2; color:var(--ink2); white-space:pre-wrap; }
 /* 路线终审判词:池子的最后一句话(文件式虚线框,像归档夹的封条) */
 .endVerdict{
+  text-align:left; text-wrap:balance; max-width:34em; margin-left:auto; margin-right:auto;
   margin-top:4vh; padding-top:2.2vh; font-family:var(--f-sys); font-size:11px;
   letter-spacing:.12em; line-height:2.2; color:var(--ink2); white-space:pre-wrap;
   border-top:1px dashed var(--ink2); opacity:.85;
@@ -814,7 +815,7 @@ body.night .hud .starsTxt{ color:#E8C46B; }
   .tSeal{ width:48px; height:48px; font-size:11.5px; top:16px; right:12px; }
   #app{ padding:calc(10px + env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom)); }
   .dayTitle{ font-size:24px; letter-spacing:.22em; }
-  .hud{ font-size:11px; padding:7px 8px; }
+  .hud{ font-size:11px; padding:7px 58px 7px 8px; }
   .hud .cell{ padding:0 7px; }
   .hud .cell .lbl{ font-size:9px; letter-spacing:.1em; }
   .hud b{ font-size:13px; }
@@ -941,10 +942,13 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 .blot:focus-visible,
 .frag:focus-visible,
 .signChip:focus-visible,
-.hudInfo:focus-visible{
+.hudInfo:focus-visible,
+.affix:focus-visible,
+.codexTab:focus-visible{
   outline:2px solid var(--accent3);
   outline-offset:3px;
 }
+.codexTab:focus-visible{ outline-offset:2px; border-radius:8px; }
 body.night .btn:focus-visible,
 body.night .cCard:focus-visible,
 body.night .lifeCard:focus-visible{
