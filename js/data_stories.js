@@ -469,14 +469,54 @@ appendStoryAfter(11, (G)=>!G.flags.ng?null:{ text:[
   '你接过黄铜牌子的时候,鱼骨的手停了半秒。\n\n"我们……见过?"\n\n"没有。"你说得很快。',
   '他看了你三秒,把手收回去,又把牌子推过来:\n\n"那这一次,慢慢看。"' ] });
 
+/* ---- 二周目·档案跟随①:D1,接待员的档案袋 ----
+   你上一份档案没有被销毁——结案批注(ROUTE_VERDICT 原文,一字不改)被钉进了
+   新档案的首页。池子写它,接待员读它,守望者也读它(D18):同一句话,三种读者。
+   只在 NG+ 显影;首周目永远是"干净的第一份档案"。 */
+appendStoryAfter(1, (G)=>{
+  if(!G.flags.ng) return null;
+  const past=(typeof pastMeta==='function')?pastMeta():null;
+  if(!past || !past.verdict) return null;
+  const V=(typeof ROUTE_VERDICT!=='undefined')&&ROUTE_VERDICT[past.verdict];
+  if(!V) return null;
+  const rep={
+    ren:'"上次的评估,给你写了「损耗」。"她把那一页抚平,钉进新档案,"这次的计价器升级了。放心——还是会算出来的。"',
+    zhen:'"「不可复现,不可解释」。"她念这一行的时候,笑了一下,"他们给您换了新的监测方案。今晚就开始。"',
+    zhi:'"「基准线」。"她的声音里第一次出现了接近敬意的东西,"您的偏好设置已同步。祝您睡得更好。"'
+  }[past.verdict];
+  const pages=[
+    '接待员把一只牛皮纸档案袋放在柜台上。\n\n封口没有拆过。对你的上一份档案来说,拆不拆,已经不重要了。',
+    '她抽出最后一页,钉在你的新档案首页。\n\n【 结案批注 】\n\n'+V,
+    rep
+  ];
+  if((past.runs||0)>=2) pages.push('档案袋的角落,贴着一张新的小标签,mono 字体:\n\n「档案 #'+past.runs+' · 本编号已重复启用」\n\n重复启用。你是回头客了。');
+  return { text:pages };
+});
+
+/* ---- 二周目·档案跟随②:D18,守望者是这份批注的第一个体制外读者 ---- */
+appendStoryAfter(18, (G)=>{
+  if(!G.flags.ng) return null;
+  const past=(typeof pastMeta==='function')?pastMeta():null;
+  if(!past || !past.verdict) return null;
+  const msg={
+    zhen:'"档案我看过了。"她说,"「不可复现」——这是我今年听过最好的评语。\n\n这一次,别一个人查。"',
+    zhi:'"档案我看过了。"她的声音冷了一度,"「基准线」。他们给你写这种评语的时候,我们这儿得防着你。"',
+    ren:'"档案我看过了。"她停了很久,"「损耗」。他们把一个人写成这个词的时候,通常已经收走了些什么。\n\n这次,他们想收什么?"'
+  }[past.verdict];
+  if(!msg) return null;
+  return { text:[
+    '夜里,中继站的终端忽然亮了一下。是守望者的频率。\n\n她只发来一段话。没有称呼,没有落款:\n\n'+msg,
+    '末尾还有一行,像是后来补上的:\n\n「旧档案在他们柜子里。小心。」'
+  ] };
+});
+
 /* ---- 路线显影:D22 傍晚,世界把你的路线读回给你听 ---- */
 appendStoryAfter(22, (G)=>{
-  const r=G.route||{ren:0,zhen:0,zhi:0};
-  const m=Math.max(r.ren,r.zhen,r.zhi);
-  if(m<1) return null;
-  if(r.zhi===m) return { text:[
+  const ax=domAxis(1);   /* 阈值 1:路线只要起步,显影就开始 */
+  if(!ax) return null;
+  if(ax==='zhi') return { text:[
     '派单板的角落,多了一行你没见过的标注:\n\n「该机架配合度评分:持续上调。已列入优先观察名单。」\n\n优先。\n\n这个词在这里的意思是:他们会先喂你,也会先收你。' ] };
-  if(r.zhen===m) return { text:[
+  if(ax==='zhen') return { text:[
     '终端里多了一份借阅记录同步:日期,昨天。借阅人:你。\n\n你没有去过档案室。\n\n有人在替你,翻你查过的东西——\n\n或者,在替"你"这个人,准备一个说法。' ] };
   return { text:[
     '电梯公告屏在滚播"寻供体启事":感谢编号 XXXX 对邻里计划的贡献。\n\n你看不懂这算表扬,还是清点。\n\n但你想起了那些具体的人。\n\n在这座城市,把一个人从名单里捞出来,不算业绩。\n\n但你做过。名单记得。' ] };
@@ -484,12 +524,11 @@ appendStoryAfter(22, (G)=>{
 
 /* ---- 路线显影:D26 烫金的信之后,三轴各有各的读法 ---- */
 appendStoryAfter(26, (G)=>{
-  const r=G.route||{ren:0,zhen:0,zhi:0};
-  const m=Math.max(r.ren,r.zhen,r.zhi);
-  if(m<2) return null;
-  if(r.zhi===m) return { text:[
+  const ax=domAxis(2);
+  if(!ax) return null;
+  if(ax==='zhi') return { text:[
     '转正合同的附件里,夹着单独的一页:\n\n「鉴于配合度,乙方可优先选择安置楼层。」\n\n他们连你的下场,都给你留了选项。' ] };
-  if(r.zhen===m) return { text:[
+  if(ax==='zhen') return { text:[
     '你把三周的线索钉成了一页纸。钉完你发现:\n\n证据链的最后一块,是你自己。\n\n编号、机架、产出、评级——每一份文件都指向同一台机器。\n\n你把那一页合上了。不是不敢看。\n\n是留到了第 31 天。' ] };
   return { text:[
     '烫金的信,你看了很久。想起来的不是条款。\n\n是面汤的温度,天台的晚霞,和一句"躲好,别出声"。\n\n如果大脑真要被收走——\n\n他们收走的账本里,记着别人的名字。' ] };

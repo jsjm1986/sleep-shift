@@ -105,6 +105,19 @@ function warnNoSave(){ if(saveWarned) return; saveWarned=true; toast('这个环�
 
 function saveMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'meta')||'{}'); }catch(e){ return {}; } }
 function setMeta(m){ lsSet(SAVE_PREFIX+'meta', JSON.stringify(m)); }
+/* 档案跟随(v2.13):你上一份档案没有被销毁——结案批注被钉进了新档案的首页。
+   独立键,不在存档槽体系里:清存档不清档案柜,因为档案柜不归你管。
+   首周目永远不读它(flags.ng 门禁)——每个人都是从干净的第一份档案开始的。 */
+function pastMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'past')||'null'); }catch(e){ return null; } }
+function writePast(endingId){
+  const p=pastMeta()||{runs:0};
+  p.runs=(p.runs||0)+1;
+  p.route=Object.assign({}, G.route||{ren:0,zhen:0,zhi:0});
+  p.verdict=domAxis(2);
+  p.ending=endingId||null;
+  lsSet(SAVE_PREFIX+'past', JSON.stringify(p));
+  return p;
+}
 function hasAuto(){ return !!loadSlot('auto'); }
 function autoSave(){ if(!lsSet(SAVE_PREFIX+'auto', JSON.stringify(G))) warnNoSave(); }
 function saveSlot(n){ const ok=lsSet(SAVE_PREFIX+'slot'+n, JSON.stringify(G)); if(!ok) warnNoSave(); return ok; }
@@ -589,6 +602,9 @@ function glitchBase(){
   const ax=domAxis(2);
   if(ax==='zhen') b+=1;
   else if(ax==='zhi') b=Math.max(0,b-1);
+  /* 二周目·档案跟随:上局批注是「不可复现」的,他们从第一晚就盯着你。
+     这是疤痕,不是状态——它跟着档案走,跟路线无关。 */
+  if(G.flags.ng){ const past=pastMeta(); if(past && past.verdict==='zhen') b+=1; }
   return b;
 }
 
@@ -2503,6 +2519,8 @@ function showEnding(id){
       wrap.appendChild(st);
       const vax=domAxis(2);
       if(vax&&ROUTE_VERDICT[vax]) wrap.appendChild(h('div','endVerdict','【 结案批注 】\n\n'+ROUTE_VERDICT[vax]));
+      /* 档案跟随:这份档案归柜。批注原文会在你的下一份档案首页再见(若还有下一份)。 */
+      writePast(id);
       const cr=h('div','credits','《睡班》 SLEEP SHIFT<br>梦 · 工作组<br><br>感谢你,替我们做梦');
       wrap.appendChild(st); wrap.appendChild(cr);
       wrap.appendChild(mkBtn('回到标题','primary',showTitle));
