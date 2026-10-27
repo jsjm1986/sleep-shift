@@ -633,7 +633,7 @@ body.gl3 #scanlines{ opacity:.9; }
 .codexBox{
   width:100%; max-width:520px; max-height:86vh; display:flex; flex-direction:column;
   background:var(--card); border:1px solid var(--line); border-radius:16px;
-  box-shadow:0 30px 80px rgba(0,0,0,.4); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 30px 80px rgba(0,0,0,.4);
   padding:16px;
 }
 .codexHead{ text-align:center; font-size:18px; font-weight:800; letter-spacing:.5em; text-indent:.5em; }
@@ -757,7 +757,7 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 #muteBtn{
   position:fixed; right:14px; top:14px; z-index:65; width:38px; height:38px;
   border-radius:50%; border:1px solid var(--line); background:var(--card);
-  color:var(--ink2); font-size:16px; cursor:pointer; backdrop-filter:blur(8px);
+  color:var(--ink2); font-size:16px; cursor:pointer;
 }
 .center{ text-align:center; }
 .spacer{ flex:1; }
@@ -1043,8 +1043,8 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   position:absolute; left:12px; right:12px; top:10px; z-index:4;
   display:flex; align-items:center; gap:9px;
   padding:6px 10px; border-radius:10px;
-  background:rgba(8,12,24,.72); border:1px solid rgba(120,220,255,.22);
-  color:#DCE8F5; pointer-events:none; backdrop-filter:blur(6px);
+  background:rgba(8,12,24,.9); border:1px solid rgba(120,220,255,.22);
+  color:#DCE8F5; pointer-events:none;
 }
 .purifyHud .phName{ font-size:11.5px; letter-spacing:.06em; color:#FF9FD8; white-space:nowrap; }
 .purifyHud .phBar{ flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.12); overflow:hidden; }
@@ -1110,7 +1110,6 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   width:100%; max-width:680px; z-index:20;
   padding:8px 16px calc(10px + env(safe-area-inset-bottom));
   background:linear-gradient(180deg, transparent, var(--bg) 38%);
-  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   pointer-events:none;
 }
 .sleepDock .btn{ pointer-events:auto; margin-top:0; }
@@ -1146,6 +1145,7 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   .blot, .frag{ animation:none; }
   .moodDots i, .vnNext{ transition:none; }
   .stagger > *{ animation-duration:.01s; }
+  #scene .ste, #scene .scanY, #scene .pblink, #scene .sway{ animation:none; }
   #app.falling{ animation-duration:.3s; }
 }
 /* 数据位一律等宽:₡ / 突触秒 / % / 时间戳 */
@@ -1203,3 +1203,50 @@ body.night .countdownStrip{ background:var(--card); border-color:rgba(176,58,46,
 body.night .lifeCard .ic .licon{ color:#B8CCE0; }
 .codexFace{ display:inline-flex; width:24px; height:24px; vertical-align:-6px; margin-right:3px; border-radius:50%; }
 .codexFace svg{ width:100%; height:100%; }
+
+/* ---------- 终局:三十天账本 ---------- */
+.ledgerTL{
+  margin:10px 0 4px; max-height:168px; overflow-y:auto;
+  background:rgba(8,10,20,.66); border:1px solid rgba(120,220,255,.16); border-radius:6px;
+  padding:8px 10px;
+}
+.ledgerLine{
+  display:flex; gap:10px; align-items:baseline;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px; line-height:2; color:var(--ink2);
+  font-variant-numeric:tabular-nums;
+  opacity:.8;
+}
+.ledgerLine .ld{ color:var(--accent); flex:0 0 30px; }
+.ledgerLine .lt{ flex:1; }
+.ledgerLine .lm{ flex:0 0 auto; }
+.ledgerLine.last{ color:var(--ink); opacity:1; }
+.ledgerLine.last .lt{ color:#FFD166; }
+
+/* ---------- 晨间:昨夜体征 ---------- */
+.vitalsLine{
+  margin:0 0 10px; padding:7px 11px; border-radius:4px;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:10.5px; letter-spacing:.05em; color:var(--ink2);
+  background:rgba(95,125,87,.06); border:1px solid rgba(95,125,87,.28);
+  font-variant-numeric:tabular-nums;
+}
+.vitalsLine .vtag{ color:var(--fluoro); margin-right:8px; letter-spacing:.18em; }
+body.night .vitalsLine{ border-color:rgba(120,220,255,.2); }
+
+/* ---------- 场景微动效 ---------- */
+#scene .ste{ animation:steamUp 3.2s ease-in-out infinite; transform-origin:center bottom; }
+@keyframes steamUp{ 0%,100%{ transform:translateY(0); opacity:.65; } 50%{ transform:translateY(-7px); opacity:.4; } }
+#scene .scanY{ animation:scanMove 3.4s ease-in-out infinite; transform-origin:center; }
+@keyframes scanMove{ 0%,100%{ transform:scale(1); opacity:.8; } 50%{ transform:scale(1.08); opacity:.45; } }
+#scene .pblink{ animation:beaconBlink 2.8s steps(2) infinite; }
+@keyframes beaconBlink{ 0%,100%{ opacity:.75; } 50%{ opacity:.15; } }
+#scene .sway{ transform-origin:240px 420px; animation:ropeSway 5s ease-in-out infinite; }
+@keyframes ropeSway{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(1.1deg); } }
+
+/* ---------- 受理终端:在线心跳 ---------- */
+.onLine{
+  margin-top:14px; font-family:var(--f-sys); font-size:9.5px;
+  letter-spacing:.1em; color:#7FA07A; font-variant-numeric:tabular-nums;
+}
+.onLine b{ color:#8FB48A; font-weight:700; }

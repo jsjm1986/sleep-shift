@@ -60,11 +60,23 @@ const AUDIO = (() => {
     o1.connect(g); o2.connect(g); g.connect(c.destination);
     o1.start(); o2.start(); lfo.start();
     ambient = {o1,o2,lfo}; ambGain = g;
+    if (window.__pendingAmb) { setAmbient.apply(null, window.__pendingAmb); window.__pendingAmb = null; }
+  }
+  /* 场景环境音:两枚振荡器缓变到场景频率/音量(2s 渐变,无跳变) */
+  function setAmbient(f1, f2, vol){
+    if (!f1) { window.__pendingAmb = [f1, f2, vol]; return; }
+    if (!ctx || muted || !ambient) { window.__pendingAmb = [f1, f2, vol]; return; }
+    const t = ctx.currentTime + 2;
+    try {
+      ambient.o1.frequency.linearRampToValueAtTime(f1, t);
+      ambient.o2.frequency.linearRampToValueAtTime(f2, t);
+      ambGain.gain.linearRampToValueAtTime(vol, t);
+    } catch(e) {}
   }
   function toggleMute(){
     muted = !muted;
     if (ambGain) ambGain.gain.value = muted ? 0 : .028;
     return muted;
   }
-  return { SFX, ambientOn, toggleMute, isMuted:()=>muted };
+  return { SFX, ambientOn, setAmbient, toggleMute, isMuted:()=>muted };
 })();

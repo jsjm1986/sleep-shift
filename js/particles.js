@@ -66,9 +66,22 @@ const FX = (() => {
     return Math.sin(x*0.0038 + t*0.5) + Math.cos(y*0.0032 - t*0.35);             // 海/账簿:柔性卷
   }
 
-  function step(){
-    t += 0.016;
+  /* v2.7 性能:30fps 渲染分频 + 帧时自适应降载。
+     旧实现每帧全屏填充 ×2 @60fps,是移动端 GPU 头号成本;
+     环境粒子在 30fps 视觉无差,GPU 预算直接减半。
+     连续跟不上(帧距>40ms)时逐级减 25% 粒子(下限 24),低端机自愈。 */
+  let last = 0, acc = 0, slowFrames = 0;
+  function step(now){
+    requestAnimationFrame(step);
     if (mode === 'off'){ return; }
+    const dt = Math.min(now - last, 100);
+    last = now;
+    if (dt > 40 && !document.hidden) { slowFrames++; } else { slowFrames = 0; }
+    if (slowFrames > 45 && parts.length > 24) { parts = parts.slice(0, Math.floor(parts.length * 0.75)); slowFrames = 0; }
+    acc += dt;
+    if (acc < 33) return;
+    const stepDt = Math.min(acc, 100); acc = 0;
+    t += 0.032 * (stepDt / 33);
 
     if (mode === 'day'){
       ctx.fillStyle = 'rgba(247,243,236,0.5)';
@@ -127,7 +140,6 @@ const FX = (() => {
         ctx.fillRect(0, Math.random()*H, W, 2+Math.random()*30);
       }
     }
-    requestAnimationFrame(step);
   }
 
   function burst(x, y, hue, n=26){

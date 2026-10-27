@@ -13,6 +13,8 @@ const rnd=a=>a[Math.floor(Math.random()*a.length)];
 /* 绘制图标优先,emoji 兜底 */
 function cIcon(cid){ const I=window.ICONS; return (I&&I.contract[cid])||CONTRACTS[cid].icon; }
 function lIcon(lid){ const I=window.ICONS; return (I&&I.life[lid])||LIFE[lid].icon; }
+/* 触觉反馈:安卓生效,iOS 静默忽略 */
+function vib(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} }
 function LIFE_NAME(id){
   const a=(window.LIFE&&LIFE[id]);
   return a ? a.name.replace('\n',' · ') : '白天';
@@ -158,6 +160,7 @@ function normalizeSave(s){
      路线判定从此永久失真。必须逐键补成数字。 */
   ['ren','zhen','zhi'].forEach(k=>{ s.route[k]=num(s.route[k],0); });
   if(!Array.isArray(s.seen)) s.seen=[];
+  if(!Array.isArray(s.history)) s.history=[];
   if(!s.mems || typeof s.mems!=='object' || Array.isArray(s.mems)) s.mems={};
   /* 工单按"该合同第几次出工"推进;旧存档没有这两张表,补空对象即可。
      逐个键夹取,避免手改存档把 workCounts 变成字符串后导致 W 次错位。 */
@@ -260,9 +263,18 @@ function toast(msg){
 
 /* ================= 通用:多页文本场景 ================= */
 /* ================= 场景系统(程序化矢量美术) ================= */
+/* 场景→环境音映射(f1/f2/音量):合成音,无外部资源 */
+const AMB_MAP={ park:[96,144,.03], noodle:[130,196,.034], audit:[118,177,.02], tower:[118,177,.02],
+  bedroom:[84,126,.032], metro:[100,150,.028], pawn:[86,132,.03], store:[104,156,.03],
+  gym:[110,165,.03], bookstore:[90,138,.026], observatory:[78,118,.026], zao:[98,147,.03],
+  home:[110,165,.028], clinic:[120,180,.024] };
 function setScene(key){
   const s=document.getElementById('scene');
   const art=(window.SceneArt&&window.SceneArt.build)?SceneArt.build(key):null;
+  if(key && window.AUDIO && AUDIO.setAmbient){
+    const am=AMB_MAP[key]||[110,164.8,.028];
+    AUDIO.setAmbient(am[0], am[1], am[2]);
+  }
   if(!art){ s.classList.remove('on'); s.innerHTML=''; return; }
   s.className='on';
   s.innerHTML=art+`<div class="sceneVignette"></div><div class="sceneGrain"></div>`;
@@ -298,7 +310,7 @@ function runPages(pages, done, opts={}){
   let nextDelta='';
   mount.appendChild(frame);
   if(!opts.host){ vn.classList.add('on'); app.classList.add('dimmed'); }
-  const cleanup=()=>{ token.dead=true; clearInterval(typing); typing=null; mount.removeEventListener('click',tap); if(!opts.host){ vn.classList.remove('on'); app.classList.remove('dimmed'); } mount.innerHTML=''; };
+  const cleanup=()=>{ token.dead=true; clearTimeout(typing); typing=null; mount.removeEventListener('click',tap); if(!opts.host){ vn.classList.remove('on'); app.classList.remove('dimmed'); } mount.innerHTML=''; };
 
   function resolve(){
     while(i<pages.length){
@@ -328,17 +340,22 @@ function runPages(pages, done, opts={}){
     }
   }
   function type(str){
-    clearInterval(typing); full=str; textBox.textContent='';
+    clearTimeout(typing); full=str; textBox.textContent='';
     nextCue.classList.remove('on');
     let k=0;
-    typing=setInterval(()=>{
-      if(token.dead){ clearInterval(typing); typing=null; return; }
+    /* 标点停顿:逗号 80ms/句读 160ms——文字游戏的呼吸感 */
+    function typeStep(){
+      if(token.dead){ typing=null; return; }
       k+=1; textBox.textContent=full.slice(0,k);
-      if(k>=full.length){ clearInterval(typing); typing=null; onTyped(); }
-    },22);
+      if(k>=full.length){ typing=null; onTyped(); return; }
+      const ch=full[k-1];
+      const d = (ch==='，'||ch==='、'||ch===',') ? 80 : (ch==='。'||ch==='！'||ch==='？'||ch==='…') ? 160 : (ch==='\n') ? 60 : 22;
+      typing=setTimeout(typeStep, d);
+    }
+    typeStep();
   }
   function completeTyping(){
-    clearInterval(typing); typing=null;
+    clearTimeout(typing); typing=null;
     textBox.textContent=full; onTyped();
   }
   function onTyped(){
@@ -452,6 +469,14 @@ function showTitle(){
   btns.appendChild(row);
   form.appendChild(btns);
   if(saveWarned) form.appendChild(h('div','saveWarn','⚠ 此环境无法存档(隐私模式 / 存储配额)——进度只保留到关闭页面'));
+  const onLine=h('div','onLine','在线矿机 <b id="onCnt">41,203</b> 台 · 本日产出已并入矿池账');
+  form.appendChild(onLine);
+  if(window.__onT) clearInterval(window.__onT);
+  window.__onT=setInterval(()=>{
+    const el=document.getElementById('onCnt');
+    if(!el){ clearInterval(window.__onT); return; }
+    el.textContent=(41203+Math.floor(Math.random()*80)-40).toLocaleString();
+  },3000);
   form.appendChild(h('div','tFoot','神经共惠计划 · 受理终端 v4.02<br>异议通道:维护中(自 2081 年起)'));
   wrap.appendChild(form);
   app.innerHTML=''; app.appendChild(wrap);
@@ -495,6 +520,8 @@ function showMorning(){
      原先这里只有一条"记忆 <80 时 30% 概率"的随机错认——那是通用的、和你的选择无关
      的噪音。现在把玩家昨天真的走过的那一步放在最前面,随机错认退到它后面。
      读出后立即清掉:回响只打一次,否则静养日/漏做的日子会把前天的下文重播。 */
+  if(G.flags.vitals){
+  }
   const leadId=(window.DAY_LEAD&&G.flags.dayLead)?G.flags.dayLead:null;
   const lead=leadId?window.DAY_LEAD.text[leadId]:null;
   const leadName=leadId?LIFE_NAME(leadId):null;
@@ -506,6 +533,10 @@ function showMorning(){
     panel.appendChild(h('div','dayLead',`<span class="leadTag">昨天 · ${leadName}</span>${lead}`));
   }
   lines.forEach(l=>panel.appendChild(h('p','t',l)));
+  if(G.flags.vitals){
+    panel.appendChild(h('div','vitalsLine',`<span class="vtag">昨夜体征</span>${G.flags.vitals}`));
+    G.flags.vitals=0;
+  }
   // 记忆完整性下降后的"错认"系统:每天 30% 概率
   if(G.mem<80 && G.mem>=25 && Math.random()<0.3){
     const pool=[
@@ -1200,11 +1231,11 @@ function showPrologue(done){
   function show(line){
     full=line; tl.textContent=''; let k=0;
     clearInterval(typing);
-    typing=setInterval(()=>{ k+=2; tl.textContent=full.slice(0,k); if(k>=full.length){clearInterval(typing); typing=null;} },28);
+    typing=setInterval(()=>{ k+=2; tl.textContent=full.slice(0,k); if(k>=full.length){clearTimeout(typing); typing=null;} },28);
   }
   function advance(){
     if(finished) return;
-    if(typing){ clearInterval(typing); typing=null; tl.textContent=full; return; }
+    if(typing){ clearTimeout(typing); typing=null; tl.textContent=full; return; }
     i++;
     if(i<lines.length){ show(lines[i]); } else finish();
   }
@@ -1427,6 +1458,7 @@ function goSleep(){
   nightLock=true;
   app.classList.remove('hasDock');
   const D=DAYS[G.day]||{};
+  vib(70);
   app.classList.add('falling');
   FX.fall();
   setTimeout(()=>{
@@ -1690,6 +1722,15 @@ function nextDay(){
   if(dayClosed===G.day) return;          // 防止重复点击把一天推进两次
   dayClosed=G.day;
   nightLock=false;
+  /* 三十天账本:每一天收一行(D 号/标签/记忆)——终局前整体滚过 */
+  if(!Array.isArray(G.history)) G.history=[];
+  if(G.history.length < 31){
+    /* 昨夜体征:由天数确定性生成(被监测的压迫感日常化) */
+    G.flags.vitals = `深睡 ${5 + G.day % 3}h${(17 + G.day * 7) % 43}m · 梦次 ${1 + G.day % 3} · 心率 ${52 + (G.day * 7) % 18} · 体温 ${(36.1 + (G.day % 5) * 0.1).toFixed(1)}°C`;
+    const auditDay = !!(DAYS[G.day]||{}).audit;
+    const tag = auditDay ? '大清算' : (G.contract ? (CONTRACTS[G.contract].name.split('·')[0].trim()) : '裸睡');
+    G.history.push({ d: G.day, tag: tag, mem: G.mem });
+  }
   G.day++;
   if(G.day>30){ showEndingChoice(); return; }
   // weekEarn 按周累计,由大清算单展示后归零(见 showAudit),此处不可清零
@@ -1700,6 +1741,7 @@ function nextDay(){
 /* ================= 梦境 ================= */
 function startDream(spec){
   setScene(null);
+  if(window.AUDIO && AUDIO.setAmbient) AUDIO.setAmbient(72,108,.034);
   FX.setMode('night', spec.theme||'sea');
   setGlitch(Math.max(glitchBase(), spec.theme==='core'?3:1));
   app.innerHTML=hudHTML();
@@ -2051,12 +2093,12 @@ function showTwist(id, done){
     clearInterval(typing);
     typing=setInterval(()=>{
       k+=2; tl.textContent=full.slice(0,k);
-      if(k>=full.length){ clearInterval(typing); typing=null; }
+      if(k>=full.length){ clearTimeout(typing); typing=null; }
     },30);
   }
   function advance(){
     if(finished) return;
-    if(typing){ clearInterval(typing); typing=null; tl.textContent=full; return; }
+    if(typing){ clearTimeout(typing); typing=null; tl.textContent=full; return; }
     i++;
     if(i<T.lines.length){ AUDIO.SFX.glitch(); show(T.lines[i]); }
     else finish();
@@ -2064,6 +2106,7 @@ function showTwist(id, done){
   function finish(){
     if(finished) return;
     finished=true;
+    vib([15,30,15]);
     go.remove(); el.querySelector('.tt').classList.remove('gl-text');
     if(T.mood) G.mood=clamp(G.mood+T.mood,0,100);
     T.fx&&T.fx(G);
@@ -2237,6 +2280,7 @@ function showAudit(audit, done){
     ${wa&&wa.note?`<div class="waNote">${wa.note}</div>`:''}
     <div class="stamp">已自动签收<br><i>梦巢云算</i></div>`;
   wrap.appendChild(doc);
+  setTimeout(() => vib([25,45,60]), 600);
   wrap.appendChild(mkBtn('查看完毕','primary',()=>{ G.weekEarn=0; done&&done(); }));
   app.appendChild(wrap);
 }
@@ -2257,6 +2301,17 @@ function showEndingChoice(){
   ].sort((a,b)=>b[1]-a[1]);
   const line = axes[0][1]===0 ? '这一路,你只是在睡觉。\n\n睡觉,也是一种活法。' : axes[0][2];
   app.appendChild(h('div','routeLine fadeIn',line));
+  /* 三十天账本:自己的三十天被排成一行,像池子的账本(T9 具象) */
+  if(Array.isArray(G.history) && G.history.length){
+    const tl=h('div','ledgerTL');
+    const rr=h('div','ledgerRows');
+    G.history.forEach((e2,i)=>{
+      rr.appendChild(h('div','ledgerLine'+(i===G.history.length-1?' last':''),
+        `<span class="ld">D${String(e2.d).padStart(2,'0')}</span><span class="lt">${e2.tag}</span><span class="lm">记忆 ${e2.mem}%</span>`));
+    });
+    tl.appendChild(rr);
+    app.appendChild(tl);
+  }
   app.appendChild(h('div','h','云背在身后展开,等你选'));
   const cards=h('div','cards stagger');
   const conds={

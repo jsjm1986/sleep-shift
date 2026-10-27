@@ -883,7 +883,7 @@ Object.assign(builders, {
     ${steam.use}
     <path d="M150 560 C150 520 270 520 270 560 L262 588 L158 588 Z" fill="#D8C8A8"/>
     <path d="M142 560 C150 574 270 574 278 560" stroke="#B8A480" stroke-width="6" fill="none"/>
-    <g stroke="#FFF2DC" stroke-width="2.4" fill="none" opacity=".65">
+    <g stroke="#FFF2DC" stroke-width="2.4" fill="none" opacity=".65" class="ste">
       <path d="M186 508 C180 494 192 486 186 472"/>
       <path d="M210 504 C204 488 216 480 210 464"/>
       <path d="M234 508 C228 494 240 486 234 472"/>
@@ -1171,7 +1171,7 @@ Object.assign(builders, {
           <ellipse cx="${x + 44}" cy="${y + 38}" rx="17" ry="21" fill="#1B2A48"/>
           <rect x="${x + 14}" y="${y + 68}" width="60" height="4" rx="2" fill="#22345A"/>
           <rect x="${x + 14}" y="${y + 77}" width="38" height="4" rx="2" fill="#1B2A48"/>`;
-        if (st === 'face') inner += `<rect x="${x + 27}" y="${y + 17}" width="34" height="42" fill="none" stroke="#38F2D8" stroke-width="1.2" opacity=".8"/><rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#38F2D8" opacity=".55"/>`;
+        if (st === 'face') inner += `<rect x="${x + 27}" y="${y + 17}" width="34" height="42" fill="none" stroke="#38F2D8" stroke-width="1.2" opacity=".8" class="scanY"/><rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#38F2D8" opacity=".55"/>`;
         if (st === 'reject') inner += `<rect x="${x + 27}" y="${y + 17}" width="34" height="42" fill="none" stroke="#FF6B5E" stroke-width="1.2" opacity=".8"/><path d="M${x + 30} ${y + 14} L${x + 58} ${y + 62}" stroke="#FF6B5E" stroke-width="2" opacity=".75"/><rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#FF6B5E" opacity=".5"/>`;
         if (st === 'ok') inner += `<rect x="${x + 58}" y="${y + 8}" width="24" height="9" rx="1.5" fill="#4A9E6E" opacity=".6"/>`;
         s += inner;
@@ -1396,7 +1396,7 @@ Object.assign(builders, {
       <rect x="250" y="236" width="36" height="204" fill="#0C1128"/>
       <rect x="298" y="192" width="44" height="248" fill="#0E1330"/>
       ${windows(r,16,220,420,'#FFD9A0',.55)}
-      <rect x="192" y="216" width="46" height="4" fill="#FF5A5A" opacity=".7"/>
+      <rect x="192" y="216" width="46" height="4" fill="#FF5A5A" opacity=".7" class="pblink"/>
     </g>
     <rect x="28" y="54" width="334" height="392" fill="none" stroke="#3A2E20" stroke-width="8"/>
     <line x1="195" y1="54" x2="195" y2="446" stroke="#3A2E20" stroke-width="6"/>
@@ -1474,7 +1474,7 @@ Object.assign(builders, {
       <line x1="61" y1="412" x2="61" y2="396"/>
       <line x1="320" y1="440" x2="320" y2="404"/><line x1="308" y1="404" x2="332" y2="404"/><line x1="308" y1="404" x2="320" y2="440"/><line x1="332" y1="404" x2="320" y2="440"/>
     </g>
-    <path d="M240 420 C280 428 330 424 372 418" stroke="#241A34" stroke-width="1.6" fill="none"/>
+    <path d="M240 420 C280 428 330 424 372 418" stroke="#241A34" stroke-width="1.6" fill="none" class="sway"/>
     <rect x="272" y="420" width="3" height="12" fill="#241A34"/>
     <rect x="330" y="424" width="3" height="10" fill="#241A34"/>
     <rect x="0" y="524" width="${W}" height="12" fill="#1A1028"/>
