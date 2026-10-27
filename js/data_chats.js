@@ -124,7 +124,10 @@ window.chatPage = function(id, G){
   if(!elig.length) return null;
   const keyOf = it => id+':'+period+':'+(it.b||1)+':'+(it.t||'').slice(0,10);
   const fresh = elig.filter(it => !seen[keyOf(it)]);
-  const pick = (fresh.length ? fresh : elig)[(fresh.length ? fresh : elig).length-1];
+  /* v2.18:事件条目(p:1)压过泛用条目——世界的状态比日常寒暄更值得说。 */
+  const cand = (fresh.length ? fresh : elig).slice()
+    .sort((x,y)=>((y.p||0)-(x.p||0)) || ((y.b||1)-(x.b||1)));
+  const pick = cand[0];
   if(fresh.length) seen[keyOf(pick)] = 1;
   return { who:id, text:pick.t };
 };
@@ -168,4 +171,80 @@ Object.assign(window.LIFE, {
   [2,5,10,13,15,19,22].forEach(d=>add(d,'noodle'));
   [3,6,9,12,15,18,21,24,27].forEach(d=>add(d,'store'));
   [19,21,23,25,27].forEach(d=>add(d,'metro'));
+})();
+
+/* ================================================================
+   v2.18 状态感知条目:世界的状态会改变他们说什么。
+   情绪见底/记忆见底/余额见底/污染未净/急单日/路线主导——
+   这些时候,他们说的不是寒暄,是"我看见了"。p:1 压过泛用条目。
+   ================================================================ */
+CHATS.mian.early.push(
+  { b:1, p:1, req:(G)=>!!(window.RUSH&&RUSH[G.day]), t:'"听说今天有加急件。"她把面放下,"接了吧,钱多。我们都要活。\n\n——但吃完再接。"' },
+  { b:2, p:1, req:(G)=>G.mood<=35, t:'"今天汤熬久了,有点糊。"她看着你,"糊的不是汤。坐一会儿再走。"' }
+);
+CHATS.mian.mid.push(
+  { b:2, p:1, req:(G)=>G.mood<=35, t:'"脸色不好。"她把汤盛得满一点,"多熬了十分钟的那锅,今天是你的。"' },
+  { b:2, p:1, req:(G)=>(typeof taintedList==='function')&&taintedList().length>0, t:'"昨晚没睡好?"她多看了一眼,"眼睛里有沙子。多卧了个蛋——别问。"' }
+);
+CHATS.mian.late.push(
+  { b:2, p:1, req:(G)=>G.mem<70, t:'"你昨天把伞落在这儿了。"她说。你没带过伞。\n\n"没关系的。"她把伞收好,"你落在这儿的东西,我都替你记着。"' },
+  { b:2, p:2, req:(G)=>(typeof domAxis==='function')&&domAxis(2)==='zhen', t:'"你问的问题,越来越像查账的。"她说,语气听不出好坏,"挺好。账查清了,面才能安心吃。"' }
+);
+CHATS.zao.mid.push(
+  { b:1, p:1, req:(G)=>!!(window.RUSH&&RUSH[G.day]), t:'"今天是加急件的日子。"她看着派单的方向,"我知道你会接。所有人都接。\n\n我只是想让你知道——有人知道,你今晚会很疼。"' },
+  { b:2, p:1, req:(G)=>G.mem<70, t:'"这句话,你上上周说过。"她轻声说,翻开本子,日期写得很清楚。\n\n"忘了就忘了。我记着。"' }
+);
+CHATS.zao.late.push(
+  { b:1, p:1, req:(G)=>G.coins<100, t:'"这瓶我请。"她把找零推回来,"别推。清醒者的工资,就是干这个用的。"' },
+  { b:2, p:2, req:(G)=>(typeof domAxis==='function')&&domAxis(2)==='zhi', t:'"配合度评分,上调了吧。"她说,"别用那种眼神。我不是酸。\n\n我只是见过评分下调的人,长什么样。"' }
+);
+CHATS.yu.early.push(
+  { b:1, p:1, req:(G)=>!!(window.RUSH&&RUSH[G.day]), t:'"加急件的日子,当票最少。"他说,"没人舍得在今天当东西。\n\n都要留着命用。"' }
+);
+CHATS.yu.mid.push(
+  { b:1, p:1, req:(G)=>G.coins<100, t:'"空手来的?"他看了一眼柜台,"坐。\n\n这杯不算账。这行有这行的体面。"' },
+  { b:1, p:1, req:(G)=>(typeof taintedList==='function')&&taintedList().length>0, t:'"昨晚污染了?"他头也不抬,"池子今晚就折价处理你的废料。\n\n明天,可能流到我这儿。放心——缺口太大的梦,没人要。"' }
+);
+CHATS.yu.late.push(
+  { b:2, p:2, req:(G)=>(typeof domAxis==='function')&&domAxis(2)==='ren', t:'"你的当票,收得慢。"他说,"认识人多的缘故。\n\n慢,不是坏事。"' }
+);
+CHATS.guardian.late.push(
+  { b:1, p:1, req:(G)=>!!(window.RUSH&&RUSH[G.day]), t:'"加急件今晚多三起失控。"她压低声音,"别接。\n\n他们给你三倍——要的是你,三倍的折旧。"' },
+  { b:2, p:1, req:(G)=>G.mem<70, t:'"你的名字,报得慢了。"她说,"损耗到名字这层,就深了。\n\n本子给我抄一份。两个人记,丢得慢。"' },
+  { b:2, p:2, req:(G)=>(typeof domAxis==='function')&&domAxis(2)==='zhen', t:'"档案上说你查得深。"她说,"深,是对的。\n\n浅的人活得好。深的人,活得久。选哪个,自己定。"' }
+);
+CHATS.j17.mid.push(
+  { b:1, p:1, req:(G)=>G.coins<100, t:'"咖啡算我的。"他把杯子推过来,"审计员的工资,一半是咖啡。\n\n另一半,是他没报上去的事。"' }
+);
+CHATS.j17.late.push(
+  { b:2, p:1, req:(G)=>G.stars>=4, t:'"四星。"他搅着咖啡,"机器里最好的那批,笑得都一样。\n\n你笑得不一样。这不是夸奖,也不是警告。是记录。"' },
+  { b:2, p:1, req:(G)=>!!G.flags.feed_path, t:'"特批了?"他的声音没有起伏,"三倍的钱,专人陪护。\n\n还有——档案科会把你的梦,单独装订。"' },
+  { b:3, p:2, req:(G)=>(typeof domAxis==='function')&&domAxis(2)==='zhi', t:'"配合度持续上调。"他说,"我知道你要说什么——他们也在上调别的。\n\n上调观察优先级。这两件事,从来是同一件。"' }
+);
+
+/* ============ 小满:影子闲聊层(她跟着你的影子走,park 行动;xm≥1) ============ */
+CHATS.xiaoman = {
+  early: [],
+  mid: [
+    { b:1, t:'"(影子比你长出一截)今天的风,是凉的。"碎光在长椅下记着,"凉。这个词,昨天学的。"' },
+    { b:2, t:'"(她在数长椅的木条)四十二根。数完了我就在。你慢慢走。"' }
+  ],
+  late: [
+    { b:1, t:'"(影子安静地跟着)我不问你在忙什么。我学会不问了。\n\n这个,叫分寸。"' },
+    { b:2, req:(G)=>G.flags.xm_secret===2, t:'"(碎光贴着你的鞋边)『同系列』。我按你说的,标了。\n\n没人来复核。秘密——守住了。"' },
+    { b:2, p:1, req:(G)=>G.day>=28, t:'"(她数得很认真)第一批名字,快还完了。还完之后……"她停了一下,"你会难过吗?\n\n替我难过一下。我还在学,怎么难过。"' }
+  ]
+};
+
+/* park 行动追加影子闲聊(小满跟着你的影子走) */
+(function(){
+  const L=window.LIFE && window.LIFE.park;
+  if(!L || typeof L.pages!=='function') return;
+  const old=L.pages;
+  L.pages=(G)=>{
+    const base=old(G);
+    const cp=window.chatPage && chatPage('xiaoman', G);
+    if(cp) base.push(cp);
+    return base;
+  };
 })();
