@@ -284,10 +284,13 @@ function toast(msg){
 /* ================= 通用:多页文本场景 ================= */
 /* ================= 场景系统(程序化矢量美术) ================= */
 /* 场景→环境音映射(f1/f2/音量):合成音,无外部资源 */
-const AMB_MAP={ park:[96,144,.03], noodle:[130,196,.034], audit:[118,177,.02], tower:[118,177,.02],
-  bedroom:[84,126,.032], metro:[100,150,.028], pawn:[86,132,.03], store:[104,156,.03],
-  gym:[110,165,.03], bookstore:[90,138,.026], observatory:[78,118,.026], zao:[98,147,.03],
-  home:[110,165,.028], clinic:[120,180,.024] };
+/* 第 4 元 = 纹理层手势(v2.19):风/蒸汽/时钟/电流/海浪/列车/房间 */
+const AMB_MAP={ park:[96,144,.03,'wind'], noodle:[130,196,.034,'steam'], audit:[118,177,.02,'tick'], tower:[118,177,.02,'hum'],
+  bedroom:[84,126,.032,'room'], metro:[100,150,.028,'rail'], pawn:[86,132,.03,'hum'], store:[104,156,.03,'hum'],
+  gym:[110,165,.03,'off'], bookstore:[90,138,.026,'room'], observatory:[78,118,.026,'hiss'], zao:[98,147,.03,'wind'],
+  home:[110,165,.028,'room'], clinic:[120,180,.024,'hum'],
+  annot:[118,177,.024,'hum'], render:[104,156,.03,'lap'], lab:[110,165,.024,'hum'],
+  finance:[112,168,.022,'hiss'], service:[114,171,.02,'hum'], penthouse:[108,162,.026,'room'] };
 const SCENE_NAMES={ park:'白噪音公园', noodle:'陈记面馆', zao:'天台', bookstore:'旧书店',
   clinic:'社区诊所', tower:'云梯塔 41 层', metro:'旧地铁站', store:'便利店',
   observatory:'天文馆', gym:'健身房', pawn:'鱼骨典当行', audit:'清算大厅',
@@ -297,8 +300,10 @@ function setScene(key){
   const s=document.getElementById('scene');
   const art=(window.SceneArt&&window.SceneArt.build)?SceneArt.build(key):null;
   if(key && window.AUDIO && AUDIO.setAmbient){
-    const am=AMB_MAP[key]||[110,164.8,.028];
-    AUDIO.setAmbient(am[0], am[1], am[2]);
+    const am=AMB_MAP[key]||[110,164.8,.028,'hum'];
+    /* 情绪调色:情绪低,世界的底鸣跟着暗下去(音量衰减);情绪高,亮一点。 */
+    const tint=(window.G&&G&&G.mood!=null)?(G.mood<=30?0.75:(G.mood>=70?1.1:1)):1;
+    AUDIO.setAmbient(am[0], am[1], +(am[2]*tint).toFixed(4), am[3]||'hum');
   }
   if(!art){ s.classList.remove('on'); s.innerHTML=''; return; }
   s.className='on';
@@ -355,7 +360,11 @@ function runPages(pages, done, opts={}){
     }
     return undefined;
   }
+  let lastStung=null;
   function setSpeaker(p){
+    if(p && p.who){
+      if(p.who!==lastStung){ lastStung=p.who; if(window.AUDIO&&AUDIO.SFX.sting) AUDIO.SFX.sting(p.who); }
+    } else { lastStung=null; }
     if(p && p.who){
       const c=(window.CHARACTERS&&CHARACTERS[p.who])||{};
       const tone=c.tone||'#38F2D8';
@@ -521,7 +530,7 @@ function showChapterCard(done){
   const [num,title]=CHAPTERS[G.day]||['',''];
   const el=h('div','chapterCard',`<div class="cnum">${num}</div><div class="ctitle">${title}</div><div class="cline"></div>`);
   document.body.appendChild(el);
-  AUDIO.SFX.drone();
+  AUDIO.SFX.drone(); AUDIO.SFX.clock47 && AUDIO.SFX.clock47();
   let closed=false;
   const close=()=>{ if(closed) return; closed=true; el.classList.add('out'); setTimeout(()=>{ el.remove(); done&&done(); }, 800); };
   el.addEventListener('click',close);
@@ -719,6 +728,7 @@ function runSeq(seq){
     // 防御:序列在途时若天数已被推进,当天可能没有清算单——跳过而不是崩溃
     const a=(DAYS[G.day]||{}).audit;
     if(!a){ runSeq(seq); return; }
+    AUDIO.SFX.clock47 && AUDIO.SFX.clock47();
     showAudit(a, ()=>{
       const rest=(a.pages||[]).slice();
       if(a.twist) showTwist(a.twist, ()=>runSeq(rest));
@@ -1903,7 +1913,7 @@ function pickDanmaku(){
 
 function startDream(spec){
   setScene(null);
-  if(window.AUDIO && AUDIO.setAmbient) AUDIO.setAmbient(72,108,.034);
+  if(window.AUDIO && AUDIO.setAmbient){ const dtex={sea:'lap',ledger:'hiss',metro:'rail',core:'hiss'}[spec.theme]||'lap'; AUDIO.setAmbient(72,108,.034,dtex); }
   FX.setMode('night', spec.theme||'sea');
   setGlitch(Math.max(glitchBase(), spec.theme==='core'?3:1));
   app.innerHTML=hudHTML();
@@ -2034,7 +2044,7 @@ function doPurify(stage, node, done){
   const calmBoost=node.calm?0.9:1;      // 公园的白噪音跟着你进了海:更平静,更好按
   const need=(slow?2.2:1.5)*gymBoost*calmBoost;   // 秒(健身房状态更快)
   const timeout=slow?22000:16000;
-  let progress=0, holding=false, escapesLeft=(slow||node.calm)?0:1;
+  let progress=0, holding=false, escapesLeft=(slow||node.calm)?0:1, lastHB=0;
   let finished=false, frame=null;
   const start=performance.now();
   /* 倒计时按"可见时长"走,不按墙钟。
@@ -2113,6 +2123,8 @@ function doPurify(stage, node, done){
     if(holding){
       progress=Math.min(1, progress+dt/need);
       AUDIO.SFX.purge && Math.random()<0.06 && AUDIO.SFX.purge();
+      /* 最后 5 秒:心跳盖过一切提示——身体先于警报知道。 */
+      if(budget<5000 && now-lastHB>820){ lastHB=now; AUDIO.SFX.heartbeat && AUDIO.SFX.heartbeat(); }
       if(progress>0.33 && escapesLeft>0){ escapesLeft--; jump(); }
       if(progress>0.72 && escapesLeft>0){ escapesLeft--; jump(); }
     }
@@ -2173,7 +2185,8 @@ function doEcho(stage, node, done){
     box.appendChild(h('div','what',E.intro));
     const mk=(label,cls,fn)=>{ const b=mkBtn(label,cls,fn); b.style.fontSize='15px'; return b; };
     box.appendChild(mk('净化它','primary',()=>{
-      G.loot.frag+=1; G.loot.coins+=80; G.loot.mem+=1;
+      G.loot.frag+=1; G.loot.coins+=80;
+      AUDIO.SFX.combo && AUDIO.SFX.combo(G.loot.frag-1); G.loot.mem+=1;
       AUDIO.SFX.echo(); applyMood();
       showResult(E.clean);
     }));
