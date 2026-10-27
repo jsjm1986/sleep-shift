@@ -220,6 +220,12 @@ appendNightNode(29, (G)=>(G.flags.return_sis && G.flags.clue_pawn) ? { type:'pag
                (G)=>(G.flags.gift3409) ? { who:'r3409', text:[
                  '"核,收到了吧。"她忽然问,"那段海。"',
                  '"别谢我。"她说,"原品放在会难过的人手里,才算回到了家。"'] } : null,
+               (G)=>{ if(!G.flags.ng) return null; const past=(typeof pastMeta==='function')?pastMeta():null;
+                 if(!past || (past.runs||0)<1) return null;
+                 return { who:'r3409', text:[
+                   '"你身上的时间,有折痕。"她忽然说,声音很轻。',
+                   '"你来过。不止一次。"',
+                   '"每一次,你都会到这里来吗?"她望着厨房里的妹妹,"那我就每一次都在。等你。"' ] } },
                '你醒来时,眼角是湿的。\n\n原来最深的反转不是恨,是:被偷走的感情,居然也可以是一种守护。'] },
       { label:'深深鞠一躬,转身离开', fx:(G)=>{ G.flags.T12=1; },
         lines:['你把脚步放得很轻。\n\n有些相遇,不打扰就是全部的温柔。'] }
@@ -502,7 +508,11 @@ appendStoryAfter(30, (G)=>{
 appendStoryAfter(30, (G)=>!G.flags.ng?null:{ text:[
   '阿枣把本子递还给你的时候,忽然说:\n\n"上次,你也是今天把本子写满的。"',
   '你愣住:"上次?"\n\n她也愣了一下,然后笑了,笑得有点心虚:\n\n"瞧我。瞎说的。"',
-  '可她的笔记本上,你的名字后面,画着一个新的「正」字的第一笔。' ] });
+  '可她的笔记本上,你的名字后面,画着一个新的「正」字的第一笔。',
+  (G)=>{ const past=(typeof pastMeta==='function')?pastMeta():null;
+    const r=(past&&past.runs)||1;
+    if(r<3) return null;
+    return '本子上,你的名字后面的那笔,已经是第 '+r+' 划了。\n\n一笔,一次。她连这个,都记得。'; } ] });
 
 /* ---- NG+:D11 鱼骨的半秒迟疑 ---- */
 appendStoryAfter(11, (G)=>!G.flags.ng?null:{ text:[
@@ -717,6 +727,11 @@ appendStoryAfter(19, (G)=>!(G.flags.union_helped)?null:{ text:[
   { text:['她把兜帽重新戴上之前,又说了一句,像对你说,也像对隧道说:',
     '"档案室里,我的工单史还留着。连续十四周,零异常。然后,一页空白。"',
     '"他们删数据都要走流程。删人,倒是很利索。"' ] },
+  (G)=>{ if(!G.flags.ng) return null; const past=(typeof pastMeta==='function')?pastMeta():null;
+    if(!past || past.verdict!=='zhen') return null;
+    return { who:'guardian', text:[
+      '"对了。"她忽然说,像才想起来,"上期那份档案,我也看过。"',
+      '"『不可复现,不可解释』。"她把兜帽往上拉了拉,声音很稳,"这一次,我看着你——想看看,复不复现。"' ] } },
   (G)=>{ G.flags.scar_story=1; G.mood=Math.min(100,G.mood+3);
     return '回去的地铁上,你一直在看站名。九号线,倒数第三站,下一站没有名字。\n\n你以前做梦的时候,好像路过。'; }
 ]});
@@ -881,3 +896,70 @@ appendStoryAfter(13, (G)=>!(G.flags.pawnshop_open||G.flags.knows_pawn)?null:{ te
   '"收来的。"他说,"当钟的人说,他不需要知道时间了——机架会叫他。"',
   '那台闹钟被摆在橱窗最贵的位置。标签上写着:非卖品。\n\n"镇店。"鱼骨说,"收梦人的店里,总得有一件……走时准的东西。"'
 ]});
+
+/* ================================================================
+   v2.16 「待复核」:二周目角色线——六个角色透过档案看见"上一次的你"。
+   复核不是一句空话:它会走到你想保护的人面前,坐下,翻本子。
+   ================================================================ */
+
+/* ---- 面娘:复核落地在她身上 ---- */
+appendStoryAfter(23, (G)=>{
+  if(!G.flags.ng) return null;
+  const past=(typeof pastMeta==='function')?pastMeta():null;
+  if(!past || (past.bonds||0)<2) return null;
+  return { text:[
+    '面馆打烊前,你到了。面娘在擦最后一只碗,擦得很慢。',
+    { who:'mian', text:[
+      '"前几天,有人来店里问话。"她没有抬头,"两个穿制服的。问你——认识多久,来过几次,借过我什么。"',
+      '"我把小票本给他们看了。他们抄了三页,走了。"',
+      '"一碗面而已。"她把碗放下,终于看你,"他们抄得那么认真。"' ] },
+    { text:['「本期待复核」。这四个字原来是真的——它走到你想保护的人面前,坐下,翻本子。'],
+      choices:[
+        { label:'教她:下次就说不认识', fx:(G)=>{ G.mood=Math.max(0,G.mood-2); if(G.route)G.route.zhen++; },
+          lines:['"下次他们再来,就说不认识我。"你说,"如实登记,一句不多说。"',
+            '她摇头,笑了:"傻孩子。他们要的不是答案。"',
+            '"是让你知道——你在乎的每一样,他们都记着账。"' ] },
+        { label:'留下来,帮她把碗擦完', fx:(G)=>{ G.mood=Math.min(100,G.mood+3); if(G.route)G.route.ren++; },
+          lines:['你没说话。你拿起另一块抹布,和她并排站着,把最后一只碗擦完。',
+            '"擦完了。"她说,"他们那三页,还没开始抄呢。"',
+            '那晚的面,咸淡刚好。'] }
+      ]}
+  ]};
+});
+
+/* ---- 鱼骨:总账里你的旧编号 ---- */
+appendStoryAfter(24, (G)=>{
+  if(!(G.flags.ng && G.flags.clue_pawn)) return null;
+  const past=(typeof pastMeta==='function')?pastMeta():null;
+  if(!past) return null;
+  return { text:[
+    '总账翻到某一页,鱼骨的手指停在一行上,敲了敲。',
+    { who:'yu', text:[
+      '"你的旧编号。"他说,"上期,当过 '+(past.pawns||0)+' 次,赎过 '+(past.redeems||0)+' 次。"',
+      '"账不会忘。"他合上总账,"人,得学着点它。"'] }
+  ]};
+});
+
+/* ---- 小满:质检员摸出了"同系列" ---- */
+appendStoryAfter(27, (G)=>{
+  if(!(G.flags.ng && (G.flags.xm||0)>=1)) return null;
+  return { text:[
+    '路灯下,影子里的碎光今天异常安静。',
+    { who:'xiaoman', text:[
+      '"奇怪。"她终于开口,"你的样本,和库房里一批旧样本,指纹一模一样。"',
+      '"批次日期是上一期。机架编号——是你。"',
+      '"我调了质检记录。这不该发生。同一段梦,不该在两台矿机上,各跑三十天。"'] },
+    { text:['她摸到了什么。一次,只差一点。'],
+      choices:[
+        { label:'如实告诉她:你的时间重叠了', fx:(G)=>{ G.flags.xm_secret=1; G.mood=Math.max(0,G.mood-3); },
+          lines:['你把三十天之后的"第三十一天"讲了。她听得很慢,像在读一段超长的样本。',
+            '"……原来时间也会折。"她说,"折痕,会让我摸出来吗?"',
+            '"会。"你说,"你已经摸到了。"'] },
+        { label:'教她:标成「同系列」,别报', fx:(G)=>{ G.flags.xm_secret=2; if(G.route)G.route.ren++; },
+          lines:['"就标成同系列。"你说,"像连续剧。没人复核连续剧。"',
+            '碎光安静了很久。',
+            '"这个词,是我这周学的。"她说,"秘密。"',
+            '"原来保守一个秘密,就是把一段样本标成『正常』——然后,闭眼。"'] }
+      ]}
+  ]};
+});

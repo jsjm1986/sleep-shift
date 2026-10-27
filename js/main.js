@@ -116,6 +116,9 @@ function writePast(endingId){
   p.verdict=domAxis(2);
   /* 关系温度一并归档:他们会登记你认识谁——都是数据质量的一部分。 */
   p.bonds=(typeof bondSum==='function')?bondSum():0;
+  /* 经济史归档:总账不会忘(鱼骨的 D24 读的是这个)。 */
+  p.pawns=G.flags.pawn_count||0;
+  p.redeems=G.flags.redeem_count||0;
   p.ending=endingId||null;
   lsSet(SAVE_PREFIX+'past', JSON.stringify(p));
   return p;
