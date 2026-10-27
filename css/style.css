@@ -5,6 +5,14 @@
    数值即画面 / glitch 体系照旧(那是叙事系统,不是装饰)
    ============================================================ */
 
+/* 宋体 webfont:Noto Serif SC 子集(1913 字符,OFL 许可)——
+   安卓/无宋体环境下「公文体」不再降级为黑体;font-display:swap 异步加载不阻塞 */
+@font-face{
+  font-family:'Sleep Serif SC';
+  src:url('../assets/fonts/SleepSerifSC.woff2') format('woff2');
+  font-weight:400 900;
+  font-display:swap;
+}
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
 :root{
@@ -26,7 +34,7 @@
   --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 14px 28px -16px rgba(96,70,34,.5);
   --shadow-doc:0 24px 60px rgba(30,20,6,.35);
   --r:10px;              /* 公文是方的:圆角收小 */
-  --f-doc:"Songti SC","STSong","Noto Serif SC","SimSun",serif;
+  --f-doc:"Sleep Serif SC","Songti SC","STSong","Noto Serif SC","SimSun",serif;
   --f-sys:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
   --breath:4s;
   --danger:#B03A2E;
@@ -1188,3 +1196,10 @@ body.night .countdownStrip{ background:var(--card); border-color:rgba(176,58,46,
 .vnPortrait{ overflow:hidden; }
 .vnPortrait.hasSvg{ font-size:0; }
 .vnPortrait.hasSvg svg{ width:100%; height:100%; }
+
+/* ---------- 绘制图标系统 ---------- */
+.cname .cicon{ width:19px; height:19px; display:inline-flex; color:inherit; flex:0 0 19px; }
+.lifeCard .ic .licon{ width:22px; height:22px; display:block; color:var(--ink); }
+body.night .lifeCard .ic .licon{ color:#B8CCE0; }
+.codexFace{ display:inline-flex; width:24px; height:24px; vertical-align:-6px; margin-right:3px; border-radius:50%; }
+.codexFace svg{ width:100%; height:100%; }

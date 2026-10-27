@@ -10,6 +10,9 @@ function mkBtn(label, cls, onclick){ const b=h('button','btn'+(cls?' '+cls:''),l
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 /* 生活行动 id → 卡面名字(去掉换行),清晨线索条用 */
+/* 绘制图标优先,emoji 兜底 */
+function cIcon(cid){ const I=window.ICONS; return (I&&I.contract[cid])||CONTRACTS[cid].icon; }
+function lIcon(lid){ const I=window.ICONS; return (I&&I.life[lid])||LIFE[lid].icon; }
 function LIFE_NAME(id){
   const a=(window.LIFE&&LIFE[id]);
   return a ? a.name.replace('\n',' · ') : '白天';
@@ -695,7 +698,7 @@ function startDay(){
     const p=contractPreview(G.contract,G.affix,(G.flags.rush&&window.RUSH)?RUSH[G.day]:null);
     const card=h('div','cCard');
     card.style.setProperty('--c1',c.c1); card.style.setProperty('--c2',c.c2);
-    card.innerHTML=`<div class="cname">${c.icon} ${c.name}</div>
+    card.innerHTML=`<div class="cname"><span class="cicon">${cIcon(G.contract)}</span> ${c.name}</div>
       <div class="cdesc">已签署。今夜生效。</div>
       <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[G.contract]||'—'}×10⁹ 突触秒 / 夜</div>
       <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
@@ -722,7 +725,7 @@ function startDay(){
       if(gateOn && c.id!=='black' && need>G.stars){
         const lc=h('div','cCard locked');
         lc.style.setProperty('--c1','#6B6B6B'); lc.style.setProperty('--c2','#8A8A8A');
-        lc.innerHTML=`<div class="lockStamp">暂 缓</div><div class="cname">${c.icon} ${c.name}</div>
+        lc.innerHTML=`<div class="lockStamp">暂 缓</div><div class="cname"><span class="cicon">${cIcon(cid)}</span> ${c.name}</div>
           <div class="cdesc">评级不足。该单要求 <b>${starLetter(need)}</b> 级,当前 <b>${starLetter(G.stars)}</b> 级。</div>
           <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[cid]||'—'}×10⁹ 突触秒 / 夜</div>
           <div class="cmeta"><span>已锁定 · 评级在每周大清算与云梯塔超频会上变动</span></div>`;
@@ -735,7 +738,7 @@ function startDay(){
       const card=h('div','cCard');
       const p=contractPreview(cid,null);
       card.style.setProperty('--c1',c.c1); card.style.setProperty('--c2',c.c2);
-      card.innerHTML=`<div class="cname">${c.icon} ${c.name}</div>
+      card.innerHTML=`<div class="cname"><span class="cicon">${cIcon(cid)}</span> ${c.name}</div>
         <div class="cdesc">${c.desc}</div>
         <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[cid]||'—'}×10⁹ 突触秒 / 夜</div>
         <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
@@ -753,7 +756,7 @@ function startDay(){
       const p=contractPreview(rush.cid,null,rush);
       const card=h('div','cCard rush');
       card.style.setProperty('--c1','#B03A2E'); card.style.setProperty('--c2','#F2683C');
-      card.innerHTML=`<div class="rushStamp">急</div><div class="cname">${base.icon} ${base.name} · 加急件</div>
+      card.innerHTML=`<div class="rushStamp">急</div><div class="cname"><span class="cicon">${cIcon(rush.cid)}</span> ${base.name} · 加急件</div>
         <div class="cdesc">${rush.desc}</div>
         <div class="chash">额定产出 ≈ ${HASH_BY_CONTRACT[rush.cid]||'—'}×10⁹ 突触秒 / 夜(加急保量)</div>
         <div class="cmeta"><span class="money">+₡${p.earn}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
@@ -791,7 +794,7 @@ function startDay(){
     /* 「有戏」标:今天这一步会把主线往前推。不给内容提示(不剧透),只给方向。
        没有它的日子里,三个选项在玩家眼里是纯等价交易。 */
     const tag=lifeStoryTag(lid);
-    card.innerHTML=`<div class="ic">${a.icon}</div><div class="nm">${a.name.replace('\n','<br>')}</div>`
+    card.innerHTML=`<div class="ic"><span class="licon">${lIcon(lid)}</span></div><div class="nm">${a.name.replace('\n','<br>')}</div>`
       +`${tag?`<div class="lifeTag">${tag}</div>`:''}`
       +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
     card.title=short ? `余额不足,还差 ₡${short}` : (tag?`${effect}\n(今天这里有剧情)` : effect);
@@ -1029,7 +1032,7 @@ function openContract(cid, rush){
   paper.innerHTML=`
     <header>共惠计划 · 睡班合同 <small>${tk}</small></header>
     <div class="body">
-      <p class="t" style="margin:0 0 8px"><b>${c.icon} ${c.name}</b> — ${c.desc}</p>
+      <p class="t" style="margin:0 0 8px"><b>${cIcon(cid)} ${c.name}</b> — ${c.desc}</p>
       <p class="contractPreview" style="margin:0"></p>
       <h5>条款(节选)</h5>
       <p>一、供体自愿出租睡眠时段大脑算力,用途包括但不限于:蛋白质折叠、气候模拟、及其他。</p>
@@ -1290,7 +1293,7 @@ function showCodex(){
       Object.entries(GUESSES).forEach(([id,c])=>{
         const un=c.when();
         body.appendChild(h('div','panel codexRow'+(un?'':' locked'),
-          un? `<div class="cn">${c.icon} ${c.name}</div><div class="cd">${c.desc}</div>`
+          un? `<div class="cn"><span class="codexFace" style="background:${((window.CHARACTERS&&window.CHARACTERS[id])||{}).tone||'#38F2D8'}55">${(window.PORTRAITS&&window.PORTRAITS[id])||c.icon}</span> ${c.name}</div><div class="cd">${c.desc}</div>`
              : `<div class="cn">? ? ?</div><div class="cd dim">尚未相遇。</div>`));
       });
     } else if(tab==='truth'){
