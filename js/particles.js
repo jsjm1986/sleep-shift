@@ -36,6 +36,9 @@ const FX = (() => {
   function seed(){
     parts = [];
     const th = THEMES[theme] || THEMES.sea;
+    /* 路线显影:主导轴≥3 时,海的颜色被你的路线染过
+       (体制更冷 -16,人性更暖 +8;routeHueShift 由 main.js 提供,未加载时为 0) */
+    const rs = (typeof routeHueShift === 'function') ? routeHueShift() : 0;
     // 按屏幕面积自适应粒子规模(手机自动降载)
     const scale = Math.max(0.5, Math.min(1, (W*H) / (1280*800)));
     const n = Math.round((mode === 'day' ? 55 : th.count) * scale);
@@ -44,7 +47,7 @@ const FX = (() => {
         x: Math.random()*W, y: Math.random()*H,
         a: Math.random()*Math.PI*2,
         s: th.size[0] + Math.random()*(th.size[1]-th.size[0]),
-        hue: th.hue + (Math.random()-.5)*th.spread,
+        hue: th.hue + rs + (Math.random()-.5)*th.spread,
         v: .4 + Math.random()*th.speed,
         g: Math.random() < .06   // 少量"字符"粒子
       });
@@ -59,11 +62,20 @@ const FX = (() => {
   }
 
   function field(x, y){
+    let ang;
     // 伪噪声流场:不同主题不同手势
-    if (theme === 'metro')   return Math.sin(y*0.004 + t*0.7)*0.25;               // 近水平
-    if (theme === 'core'){   const dx=x-W/2, dy=y-H*0.55;
-      return Math.atan2(dy,dx) + Math.PI/2 + Math.sin(t*0.4)*0.4; }              // 环绕中心
-    return Math.sin(x*0.0038 + t*0.5) + Math.cos(y*0.0032 - t*0.35);             // 海/账簿:柔性卷
+    if (theme === 'metro'){  ang = Math.sin(y*0.004 + t*0.7)*0.25; }             // 近水平
+    else if (theme === 'core'){ const dx=x-W/2, dy=y-H*0.55;
+      ang = Math.atan2(dy,dx) + Math.PI/2 + Math.sin(t*0.4)*0.4; }              // 环绕中心
+    else ang = Math.sin(x*0.0038 + t*0.5) + Math.cos(y*0.0032 - t*0.35);        // 海/账簿:柔性卷
+    /* 路线显影:体制主导,流场量化到 8 向——整齐,也冷(连你的梦都被调稳了);
+       真相主导,加一点扰动——你见过的东西让海不稳。 */
+    if (typeof routeFieldQuant === 'function' && routeFieldQuant()){
+      ang = Math.round(ang / (Math.PI/4)) * (Math.PI/4);
+    } else if (typeof routeFieldJitter === 'function' && routeFieldJitter()){
+      ang += (Math.random()-.5) * 0.9;
+    }
+    return ang;
   }
 
   /* v2.7 性能:30fps 渲染分频 + 帧时自适应降载。

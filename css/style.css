@@ -670,6 +670,12 @@ body.gl3 #scanlines{ opacity:.9; }
 .rb .bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent3)); border-radius:4px; transition:width .8s; }
 .rb b{ width:20px; text-align:right; }
 .epistats{ margin-top:6vh; font-size:13px; line-height:2; color:var(--ink2); white-space:pre-wrap; }
+/* 路线终审判词:池子的最后一句话(文件式虚线框,像归档夹的封条) */
+.endVerdict{
+  margin-top:4vh; padding-top:2.2vh; font-family:var(--f-sys); font-size:11px;
+  letter-spacing:.12em; line-height:2.2; color:var(--ink2); white-space:pre-wrap;
+  border-top:1px dashed var(--ink2); opacity:.85;
+}
 
 /* ---------- 场景层(程序化矢量美术) ---------- */
 #scene{ position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0; transition:opacity .9s ease; }

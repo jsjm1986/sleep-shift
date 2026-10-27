@@ -602,6 +602,15 @@ function domAxis(min=2){
   if(r.ren===m) return 'ren';
   return null;
 }
+/* 路线视觉参数(供 particles.js 每帧/每帧种子读取;标题页 G 未开档,先守卫)。
+   体制=量化流场+冷色(整齐,也冷);真相=扰动(你见过的让海不稳);人性=暖色(+8)。 */
+function routeAxis3(){
+  if(!G||!G.route) return null;
+  return domAxis(3);
+}
+function routeHueShift(){ const a=routeAxis3(); return a==='zhi'?-16:(a==='ren'?8:0); }
+function routeFieldQuant(){ return routeAxis3()==='zhi'; }
+function routeFieldJitter(){ return routeAxis3()==='zhen'; }
 
 function afterMorning(){
   const D=DAYS[G.day]||{};
@@ -2491,6 +2500,9 @@ function showEnding(id){
       ].filter(Boolean).join('\n') : `—— 你这一生的产出 ——\n\n你没有接过一单。\n\n在这座城市,这既不叫自由,也不叫抵抗。\n\n这叫:没有被开采的价值。`;
       const st=h('div','panel epistats',
         `本局档案 · 第 ${G.day} 天\n\n人性 ${r.ren} · 真相 ${r.zhen} · 体制 ${r.zhi}\n\n记忆完整性 ${G.mem}% · 典当 ${G.flags.pawn_count||0} 次 · 赎回 ${G.flags.redeem_count||0} 次\n\n${ledgerBlock}\n\n已见证的真相:${twistsSeen} / 14`);
+      wrap.appendChild(st);
+      const vax=domAxis(2);
+      if(vax&&ROUTE_VERDICT[vax]) wrap.appendChild(h('div','endVerdict','【 结案批注 】\n\n'+ROUTE_VERDICT[vax]));
       const cr=h('div','credits','《睡班》 SLEEP SHIFT<br>梦 · 工作组<br><br>感谢你,替我们做梦');
       wrap.appendChild(st); wrap.appendChild(cr);
       wrap.appendChild(mkBtn('回到标题','primary',showTitle));
@@ -2505,6 +2517,14 @@ function showEnding(id){
 }
 
 /* ================= 调试 ================= */
+/* 路线终审判词:池子的最后一句话。三十天怎么活的,它都看见了;
+   这里写的是它怎么给你"定性"——人性记损耗,真相归档不复核,体制推荐为样版。
+   与结局无关,贴在所有终局档案之后:无论你去了哪里,结论都由它写。 */
+const ROUTE_VERDICT={
+  ren:'该机架三十天的产出里,混入了大量无法计价的内容:人、名字、等待。\n\n已按「损耗」处理。',
+  zhen:'该机架看见了全部结构,并保留了下来。\n\n此现象不可复现,不可解释。已归档,不再复核。',
+  zhi:'三十天,零异常,零申诉。该机架是全片区的基准线。\n\n已推荐:新机架以它的梦为出厂样版。'
+};
 function showDebugBar(){
   const bar=$('#debugBar'); bar.style.display='flex';
   const mk=(label,fn)=>{ const b=document.createElement('button'); b.textContent=label; b.onclick=fn; bar.appendChild(b); };
