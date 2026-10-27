@@ -160,7 +160,8 @@ body.night .panel{
 body.night .panel::before{ display:none; }
 .h{
   font-family:var(--f-doc);
-  font-size:12.5px; letter-spacing:.34em; color:var(--ink2); margin:22px 2px 8px;
+  font-size:12px; letter-spacing:.3em; color:var(--ink2); margin:22px 2px 8px;
+  opacity:.85;
 }
 .h:first-child{ margin-top:4px; }
 
@@ -297,6 +298,11 @@ body.night .dayTitle::after{ background:var(--accent); }
    故按压反馈用 !important 提权。此写法只在"有动画占用 transform"时才起作用,
    无动画的元素不受影响,属零副作用。 */
 .cCard:active{ transform:scale(.98) !important; }
+@media (hover:hover){
+  .cCard{ transition:transform .15s, box-shadow .2s; }
+  .cCard:hover{ transform:translateY(-2px); box-shadow:var(--shadow), 0 4px 12px rgba(96,70,34,.2); }
+  .cCard:active{ transform:scale(.98) !important; }
+}
 /* 票券顶部色带:品类色只留这一条,不再整卡渐变 */
 .cCard::before{
   content:''; position:absolute; left:0; right:0; top:0; height:4px;
@@ -359,6 +365,10 @@ body.night .cCard::after{ opacity:.4; }
 body.night .cCard .cname{ color:#EAF6FF; }
 body.night .cCard .cdesc{ color:#93A7C4; }
 .lifeCard:active{ transform:scale(.95); }
+@media (hover:hover){
+  .lifeCard{ transition:transform .12s, box-shadow .2s; }
+  .lifeCard:hover{ transform:translateY(-2px); box-shadow:var(--shadow), 0 4px 10px rgba(96,70,34,.18); }
+}
 .lifeCard .ic{
   width:36px; height:36px; margin:0 auto; border-radius:50%;
   display:flex; align-items:center; justify-content:center; font-size:18px;
@@ -683,6 +693,10 @@ body.gl3 #scanlines{ opacity:.9; }
   color:#E7EEF8;
   animation:vnIn .35s ease both;
 }
+/* 白天:暖金顶线替代冷青——连接公文世界 */
+body:not(.night) #vn .vnFrame{ border-top:1px solid rgba(201,162,75,.35); }
+body:not(.night) #vn .vnHead .vnName{ color:var(--accent3) !important; }
+body:not(.night) #vn .vnHead .vnPortrait{ border-color:var(--accent3) !important; box-shadow:0 0 12px rgba(242,104,60,.2) !important; }
 /* 注意:入场动画只能动 bottom/opacity,不能动 transform——
    #vn .vnFrame 依赖 transform:translateX(-50%) 做居中,
    动画一旦占用 transform 就会覆盖该居中,导致对话框整体右移半个视口。 */
@@ -712,9 +726,17 @@ body.gl3 #scanlines{ opacity:.9; }
 @keyframes vnBlink{ 0%,100%{ transform:translateY(0); opacity:.4;} 50%{ transform:translateY(3px); opacity:1;} }
 .vnChoices{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
 .vnChoices .btn{ margin-top:0; font-size:15px; padding:12px 14px;
-  background:linear-gradient(180deg, rgba(56,242,216,.12), rgba(255,79,216,.08));
-  border:1px solid rgba(56,242,216,.45); color:#DFFCF6;
+  background:linear-gradient(180deg, rgba(56,242,216,.08), rgba(56,242,216,.04));
+  border:1px solid rgba(56,242,216,.35); color:#DFFCF6;
+  text-align:left; padding-left:34px; position:relative;
 }
+.vnChoices .btn::before{
+  content:''; position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  width:12px; height:12px; border:1.4px solid rgba(56,242,216,.5);
+  border-radius:2px; transition:background .15s;
+}
+.vnChoices .btn:hover::before,
+.vnChoices .btn:active::before{ background:rgba(56,242,216,.3); }
 .vnChoices .btn:active{ transform:scale(.97); }
 /* 梦境内对话框贴底 */
 .dreamStage .stageOv .vnFrame{ margin-top:auto; border-radius:16px; box-shadow:0 -12px 34px rgba(0,0,0,.55); }
@@ -1250,3 +1272,21 @@ body.night .vitalsLine{ border-color:rgba(120,220,255,.2); }
   letter-spacing:.1em; color:#7FA07A; font-variant-numeric:tabular-nums;
 }
 .onLine b{ color:#8FB48A; font-weight:700; }
+
+/* ---------- 场景标签戳:进入地点时的红章 ---------- */
+.locStamp{
+  position:fixed; top:16%; left:50%; z-index:25; pointer-events:none;
+  transform:translateX(-50%) rotate(-2deg);
+  font-family:var(--f-doc); font-weight:900; font-size:20px;
+  letter-spacing:.4em; text-indent:.4em; color:rgba(176,58,46,.88);
+  border:2.5px solid rgba(176,58,46,.75); border-radius:4px;
+  padding:7px 20px; background:rgba(251,247,238,.9);
+  box-shadow:inset 0 0 0 2.5px rgba(176,58,46,.12), 0 4px 16px rgba(96,70,34,.2);
+  opacity:0; animation:locIn 1.6s ease both;
+}
+@keyframes locIn{
+  0%{ opacity:0; transform:translateX(-50%) rotate(-2deg) scale(1.12); }
+  14%{ opacity:.92; transform:translateX(-50%) rotate(-2deg) scale(1); }
+  72%{ opacity:.92; }
+  100%{ opacity:0; transform:translateX(-50%) rotate(-2deg) scale(.98); }
+}

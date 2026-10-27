@@ -268,6 +268,11 @@ const AMB_MAP={ park:[96,144,.03], noodle:[130,196,.034], audit:[118,177,.02], t
   bedroom:[84,126,.032], metro:[100,150,.028], pawn:[86,132,.03], store:[104,156,.03],
   gym:[110,165,.03], bookstore:[90,138,.026], observatory:[78,118,.026], zao:[98,147,.03],
   home:[110,165,.028], clinic:[120,180,.024] };
+const SCENE_NAMES={ park:'白噪音公园', noodle:'陈记面馆', zao:'天台', bookstore:'旧书店',
+  clinic:'社区诊所', tower:'云梯塔 41 层', metro:'旧地铁站', store:'便利店',
+  observatory:'天文馆', gym:'健身房', pawn:'鱼骨典当行', audit:'清算大厅',
+  bedroom:'体面舱', home:'常暖市 · 地面', annot:'供体算力池', render:'环境算力池',
+  finance:'隔夜风险池', lab:'生物算力池', service:'服务间', penthouse:'88 层' };
 function setScene(key){
   const s=document.getElementById('scene');
   const art=(window.SceneArt&&window.SceneArt.build)?SceneArt.build(key):null;
@@ -278,6 +283,14 @@ function setScene(key){
   if(!art){ s.classList.remove('on'); s.innerHTML=''; return; }
   s.className='on';
   s.innerHTML=art+`<div class="sceneVignette"></div><div class="sceneGrain"></div>`;
+  /* 场景标签戳:进入地点时闪现红章(1.6s 自动消失) */
+  const name = SCENE_NAMES[key];
+  /* home/bedroom 是默认态,不算"到达" */
+  if(name && key!=='home' && key!=='bedroom' && !document.querySelector('.locStamp')){
+    const st = h('div','locStamp',name);
+    document.body.appendChild(st);
+    setTimeout(() => st.remove(), 1700);
+  }
 }
 
 /* ================= 视觉小说对话系统 ================= */
