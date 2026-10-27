@@ -1360,7 +1360,9 @@ function showCodex(){
     } else if(tab==='mem'){
       MEMORIES.forEach(m=>{
         const st=G.mems[m.id]||'full';
-        const mark = st==='full'?'● 完整':(st==='pawned'?'○ 已典当':'▲ 污染中');
+        const mark = st==='full'
+          ?'<span style="color:#3BA55D">●</span> 完整'
+          :(st==='pawned'?'<span style="color:#C9A24B">○</span> 已典当':'<span style="color:#B03A2E">▲</span> 污染中');
         body.appendChild(h('div','panel codexRow',
           `<div class="cn">${mark} ${m.name}</div><div class="cd ${st==='tainted'?'dim':''}">${st==='tainted'?'记忆缺失。它在云背里,等着你。':m.line}</div>`));
       });
@@ -1774,7 +1776,9 @@ function startDream(spec){
   const guideText=n=>{
     if(!n) return '夜班开始 · 按屏幕提示操作';
     if(n.type==='pages') return '夜间记录 · 点击对话框继续';
-    if(n.type==='purify') return `净化「${n.name||'污染体'}」 · 持续按住;它逃逸后重新按住`;
+    if(n.type==='purify') return n.calm
+      ? `净化「${n.name||'污染体'}」 · 持续按住即可`
+      : `净化「${n.name||'污染体'}」 · 持续按住;它逃逸后重新按住`;
     if(n.type==='echo') return '回声 · 选择净化、聆听或击碎';
     if(n.type==='collect') return `收集记忆碎片 · 点中 ${n.n||3} 个光点`;
     if(n.type==='chase') return `追踪逃逸污染体 · 点中 ${n.n||3} 次`;
@@ -1789,6 +1793,18 @@ function startDream(spec){
     taintedList().slice(0,2).forEach(id=>{
       if(!nodes.some(n=>n.tainted===id)) nodes.push({type:'purify',name:'污染体 · '+memName(id),tainted:id});
     });
+  }
+  /* 白天那一步,今夜有手感:行动不只改数值,也改夜里的操作本身——
+     公园把海面铺平(净化体不逃逸)、诗集让梦变轻(碎片更少)、
+     收音机把别人的梦带了进来(多一段回声)。
+     只作用于常规夜:强排剧情夜保持原样,不掺随机奖励。
+     对应的系统批注文本在 nightLeadPage,两边说的是同一件事。 */
+  const dl=(G.flags&&G.flags.dayLead)||null;
+  const forcedNight=!!(window.DAYS&&DAYS[G.day]&&DAYS[G.day].night);
+  if(!spec.ending && !forcedNight && dl){
+    if(dl==='park') nodes.forEach(n=>{ if(n&&n.type==='purify') n.calm=1; });
+    if(dl==='bookstore') nodes.forEach(n=>{ if(n&&n.type==='collect'&&n.n>2) n.n--; });
+    if(dl==='radio'&&!nodes.some(n=>n&&n.type==='echo')) nodes.push({type:'echo',id:'lullaby'});
   }
 
   let danTimer=null;
@@ -1819,6 +1835,12 @@ function startDream(spec){
     if(pe) lines.push(settleLine(pe.earn, pe.af, pe.c && pe.c.id, pe.q, pe.gross, pe.hs));
     lines.push('云背合拢。你浮了上来。');
     if(L.frag) lines.push(`记忆碎片 ×${L.frag} → <b>+₡${L.coins}</b>`);
+    /* 面娘的蛋:吃饱的打捞更稳。与 nightLeadPage 的「矿机进食状况良好」互为表里——
+       系统把这件事记成了体检数据,而它实际长在这里。 */
+    if(G.flags.dayLead==='noodle' && L.coins>0){
+      L.coins+=60;
+      lines.push('面馆的蛋还在身体里 → 打捞分成 <b style="color:#C9A24B">+₡60</b>');
+    }
     if(L.mem) lines.push(`净化安抚 → <b>记忆完整性 +${L.mem}%</b>`);
     if(L.redeem.length) lines.push(`赎回:「${L.redeem.map(memName).join('」「')}」`);
     G.coins+=L.coins; G.mem=clamp(G.mem+L.mem,0,100);
@@ -1864,9 +1886,10 @@ function stageOverlay(stage, cb){
 function doPurify(stage, node, done){
   const slow=node.slow;
   const gymBoost=G.flags.gym?0.85:1;
-  const need=(slow?2.2:1.5)*gymBoost;   // 秒(健身房状态更快)
+  const calmBoost=node.calm?0.9:1;      // 公园的白噪音跟着你进了海:更平静,更好按
+  const need=(slow?2.2:1.5)*gymBoost*calmBoost;   // 秒(健身房状态更快)
   const timeout=slow?22000:16000;
-  let progress=0, holding=false, escapesLeft=slow?0:1;
+  let progress=0, holding=false, escapesLeft=(slow||node.calm)?0:1;
   let finished=false, frame=null;
   const start=performance.now();
   /* 倒计时按"可见时长"走,不按墙钟。
@@ -1888,7 +1911,7 @@ function doPurify(stage, node, done){
   /* 净化 HUD:进度 + 剩余时间。旧版只有环,16/22 秒限时完全不可见,
      失败时玩家只看到"它挣脱了",不知道规则,也没有再来一次的反馈。 */
   const hud=h('div','purifyHud',
-    `<span class="phName">${node.name||'污染体'}</span>`+
+    `<span class="phName">${node.name||'污染体'}${node.calm?' · <span style="color:#3BA55D">平静</span>':''}</span>`+
     `<span class="phBar"><i style="width:0%"></i></span>`+
     `<b class="phTime">${(budget/1000).toFixed(1)}s</b>`);
   stage.appendChild(hud);
