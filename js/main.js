@@ -8,6 +8,8 @@ const app = document.getElementById('app');
 function h(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
 function mkBtn(label, cls, onclick){ const b=h('button','btn'+(cls?' '+cls:''),label); b.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); onclick(e); }); return b; }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+/* 打字机防标签泄漏:VN/twist/序章三类逐字文本,打字期显示剥标签纯文本、落定挂回 HTML */
+const stripTags=t=>String(t).replace(/<[^>]*>/g,'');
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 /* 生活行动 id → 卡面名字(去掉换行),清晨线索条用 */
 /* 绘制图标优先,emoji 兜底 */
@@ -383,7 +385,6 @@ function runPages(pages, done, opts={}){
   }
   /* v2.21:VN 文本可携带行内标签(结算行 <b> 等)。打字期间显示剥标签纯文本,
      落定瞬间挂回原始 HTML——标签字符全程不可见(此前污染夜的结算行把 <b> 打成了字面量)。 */
-  const stripTags = t => t.replace(/<[^>]*>/g, '');
   function type(str){
     clearTimeout(typing); full=str; textBox.textContent='';
     nextCue.classList.remove('on');
@@ -1368,12 +1369,17 @@ function showPrologue(done){
   let finished=false;
   function show(line){
     full=line; tl.textContent=''; let k=0;
+    const plain=stripTags(line);
     clearInterval(typing);
-    typing=setInterval(()=>{ k+=2; tl.textContent=full.slice(0,k); if(k>=full.length){clearTimeout(typing); typing=null;} },28);
+    typing=setInterval(()=>{
+      k+=2;
+      if(k>=plain.length){ tl.innerHTML=full; clearTimeout(typing); typing=null; return; }
+      tl.textContent=plain.slice(0,k);
+    },28);
   }
   function advance(){
     if(finished) return;
-    if(typing){ clearTimeout(typing); typing=null; tl.textContent=full; return; }
+    if(typing){ clearTimeout(typing); typing=null; tl.innerHTML=full; return; }
     i++;
     if(i<lines.length){ show(lines[i]); } else finish();
   }
@@ -2297,15 +2303,17 @@ function showTwist(id, done){
   let closed=false;
   function show(line){
     full=line; tl.textContent=''; let k=0;
+    const plain=stripTags(line);
     clearInterval(typing);
     typing=setInterval(()=>{
-      k+=2; tl.textContent=full.slice(0,k);
-      if(k>=full.length){ clearTimeout(typing); typing=null; }
+      k+=2;
+      if(k>=plain.length){ tl.innerHTML=full; clearTimeout(typing); typing=null; return; }
+      tl.textContent=plain.slice(0,k);
     },30);
   }
   function advance(){
     if(finished) return;
-    if(typing){ clearTimeout(typing); typing=null; tl.textContent=full; return; }
+    if(typing){ clearTimeout(typing); typing=null; tl.innerHTML=full; return; }
     i++;
     if(i<T.lines.length){ AUDIO.SFX.glitch(); show(T.lines[i]); }
     else finish();
