@@ -629,6 +629,16 @@ body.gl3 #scanlines{ opacity:.9; }
 .affix b{ display:block; font-size:12.5px; margin-bottom:2px; }
 .affix.picked{ border-color:var(--accent3); background:#FFF1E2; box-shadow:0 0 0 2px rgba(242,104,60,.18); }
 
+/* 可对话角标:生活卡上的"今天能找人说话" */
+.chatChip{
+  display:inline-flex; align-items:center; gap:5px;
+  margin-top:8px; padding:3px 9px;
+  border:1px solid; border-radius:7px;
+  font-family:var(--f-sys); font-size:10px; letter-spacing:.08em;
+  background:rgba(255,253,247,.6); align-self:flex-start;
+}
+.chatChip .ccIcon{ width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round; }
+
 /* ---------- 说话人标签 / 路线评语 ---------- */
 .whoTag{
   display:inline-block; font-size:12px; letter-spacing:.22em;

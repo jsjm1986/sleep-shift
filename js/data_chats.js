@@ -113,7 +113,7 @@ window.CHATS = {
 };
 
 /* ---------- 抽取:温度够、条件过、seen 去重;优先未看过的最高温度档 ---------- */
-window.chatPage = function(id, G){
+window.chatPage = function(id, G, peek){
   if(!G || !window.CHATS) return null;
   const pool=CHATS[id]; if(!pool) return null;
   const period = G.day<=9?'early' : (G.day<=19?'mid':'late');
@@ -128,7 +128,7 @@ window.chatPage = function(id, G){
   const cand = (fresh.length ? fresh : elig).slice()
     .sort((x,y)=>((y.p||0)-(x.p||0)) || ((y.b||1)-(x.b||1)));
   const pick = cand[0];
-  if(fresh.length) seen[keyOf(pick)] = 1;
+  if(fresh.length && !peek) seen[keyOf(pick)] = 1;   /* peek=true:只探可用性,不消耗 seen */
   return { who:id, text:pick.t };
 };
 
@@ -248,3 +248,27 @@ CHATS.xiaoman = {
     return base;
   };
 })();
+
+/* ---------- 可对话标识:生活卡上的"今天能找人说话"角标(v2.23) ----------
+   串门系统藏在行动内部,没有可见入口等于不存在。角标只在
+   chatPage peek 非空时出现——温度不够/不认识的人,角标自动隐藏。 */
+window.CHAT_LIFE = {
+  noodle:   { who:'mian',      label:'面娘' },
+  zao:      { who:'zao',       label:'阿枣' },
+  store:    { who:'j17',       label:'017' },
+  metro:    { who:'guardian',  label:'守望者' },
+  pawnshop: { who:'yu',        label:'鱼骨' }
+};
+window.chatChip = function(lid, G){
+  const m=window.CHAT_LIFE && CHAT_LIFE[lid];
+  if(!m || !window.chatPage) return null;
+  const names=[m.label];
+  if(lid==='pawnshop'){
+    const c=chatPage('r3409', G, true);
+    if(c) names.push('替3409带话');
+  }
+  const c=chatPage(m.who, G, true);
+  if(!c) return null;
+  const tone=((window.CHARACTERS&&CHARACTERS[m.who])||{}).tone||'#38F2D8';
+  return { who:m.who, tone, label:names.join(' · ') };
+};

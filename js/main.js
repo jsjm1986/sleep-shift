@@ -955,9 +955,13 @@ function startDay(){
        没有它的日子里,三个选项在玩家眼里是纯等价交易。 */
     const tag=lifeStoryTag(lid);
     card.dataset.ltype = ({ park:'recover', zao:'recover', clinic:'recover', gym:'recover', noodle:'recover', bookstore:'story', observatory:'story', radio:'story', metro:'story', tower:'work', partjob:'work', pawnshop:'story', store:'recover' })[lid] || 'recover';
+    /* 可对话角标(v2.23):有人、且温度够聊,卡片上就给一句"今天能说话"的可见入口 */
+    const chip=(window.chatChip&&chatChip(lid,G))||null;
+    if(chip && !G.flags.chatHinted){ G.flags.chatHinted=1; toast('生活行动里,有人在等你说话——找他们聊聊,能听到的比任务多。'); }
     card.innerHTML=`<div class="ic"><span class="licon">${lIcon(lid)}</span></div><div class="nm">${a.name.replace('\n','<br>')}</div>`
       +`${tag?`<div class="lifeTag">${tag}</div>`:''}`
-      +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`;
+      +`<div class="lifeMeta">${effect}</div>${short?`<div class="lifeLock">还差 ₡${short}</div>`:''}`
+      +`${chip?`<div class="chatChip" style="border-color:${chip.tone}66;color:${chip.tone}"><svg viewBox="0 0 16 16" class="ccIcon" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6L4 14v-3H2.5z"/></svg>${chip.label}</div>`:''}`;
     card.title=short ? `余额不足,还差 ₡${short}` : (tag?`${effect}\n(今天这里有剧情)` : effect);
     card.setAttribute('aria-disabled', G.lifeDone||short ? 'true':'false');
     bindActivate(card,()=>{
