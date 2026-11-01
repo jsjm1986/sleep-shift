@@ -437,14 +437,21 @@ function runPages(pages, done, opts={}){
     nextDelta='';
     choiceRow.innerHTML=''; pendingChoices=null;
     const p=pages[i];
-    // 容错:若某一页把"下一页"对象误写进 text 数组,就地提升为后续页。
-    // 否则 join 后会渲染出 "[object Object]",且内嵌的选项永远不会出现。
-    if(p && typeof p==='object' && Array.isArray(p.text)){
-      const nested=p.text.filter(t=>t && typeof t==='object' && !Array.isArray(t));
-      if(nested.length){
-        p.text=p.text.filter(t=>!(t && typeof t==='object' && !Array.isArray(t)));
-        pages.splice(i+1,0,...nested);
-      }
+    /* 容错:text 约定为"字符串数组",但实际出现过三种误写——
+       ① 页对象误嵌进 text(旧问题,就地提升为后续页,否则渲染 "[object Object]" 且选项永不出);
+       ② text 直接写成字符串(chatPage 的串门闲聊页,join 直接抛 TypeError,整页被跳过);
+       ③ 函数误塞进 text(小满 D27 / 鱼骨 D28 的收尾拍,join 会把函数源码渲染成文字,
+          且函数不执行——xm/drawer_seen 两个 flag 因此永不落账)。
+       统一在这里归一化:函数先解(返回对象照样提升),对象提升为后续页,字符串保留。 */
+    if(p && typeof p==='object' && p.text!=null){
+      const arr=[].concat(p.text), flat=[], nested=[];
+      arr.forEach(t=>{
+        try{ while(typeof t==='function') t=t(G); }catch(e){ t=null; }
+        if(t && typeof t==='object' && !Array.isArray(t)) nested.push(t);
+        else if(t!=null) flat.push(t);
+      });
+      p.text=flat;
+      if(nested.length) pages.splice(i+1,0,...nested);
     }
     if(typeof p==='object' && p.scene) setScene(p.scene);
     setSpeaker(p);
@@ -1204,7 +1211,7 @@ function openContract(cid, rush){
   paper.innerHTML=`
     <header>共惠计划 · 睡班合同 <small>${tk}</small></header>
     <div class="body">
-      <p class="t" style="margin:0 0 8px"><b>${cIcon(cid)} ${c.name}</b> — ${c.desc}</p>
+      <p class="t" style="margin:0 0 8px"><b><span class="cicon">${cIcon(cid)}</span> ${c.name}</b> — ${c.desc}</p>
       <p class="contractPreview" style="margin:0"></p>
       <h5>条款(节选)</h5>
       <p>一、供体自愿出租睡眠时段大脑算力,用途包括但不限于:蛋白质折叠、气候模拟、及其他。</p>

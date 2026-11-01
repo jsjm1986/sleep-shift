@@ -404,6 +404,9 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
 .paper header small{ font-weight:400; color:#9A8C74; }
 .paper .body{ padding:14px 20px; overflow-y:auto; font-size:13.5px; line-height:2; }
 .paper .body h5{ margin:10px 0 2px; font-size:13px; color:#8A7B62; }
+/* 签约正文里的合同图标走 .cicon 尺寸契约(卡片是 .cname .cicon 19px);
+   裸插的 SVG 是 width:100% 全尺寸,此前在弹窗里撑成 200px 的巨图 */
+.paper .body .cicon{ width:19px; height:19px; display:inline-flex; vertical-align:-4px; }
 .paper .clause14{ background:#FFF3D6; border:1px dashed #E4C98B; border-radius:8px; padding:8px 12px; margin:8px 0; }
 .paper .clause14 label{ display:flex; gap:8px; align-items:center; color:#8A6A2F; font-size:12.5px; }
 .paper .clause14 input{ pointer-events:none; }
