@@ -222,7 +222,7 @@ function normalizeSave(s){
      补 0 而不是补估算值——算不出来的账,宁可显示 0,也不能编。 */
   ['totalHash','totalGross','totalEarn','totalCut'].forEach(k=>{ s[k]=Math.max(0, num(s[k],0)); });
   s.nightsWorked=Math.max(0, num(s.nightsWorked,0));
-  if(s.glitch==null) s.glitch=0;
+  if(s.glitch==null) s.glitch=0; else s.glitch=clamp(Math.floor(num(s.glitch,0)),0,5);
   if(s.affix===undefined) s.affix=null;
   if(typeof s.lifeDone!=='boolean') s.lifeDone=false;
   if(!s.flags || typeof s.flags!=='object' || Array.isArray(s.flags)) s.flags={};
@@ -269,7 +269,8 @@ function normalizeSave(s){
      ② 计数类会被拼进反转/档案页文案(且 .repeat 负数会 RangeError 软锁反转页)。 */
   if(s.flags && typeof s.flags==='object'){
     if(typeof s.flags.vitals!=='string' || s.flags.vitals.length>200 || /[<>]/.test(s.flags.vitals)) delete s.flags.vitals;
-    ['pawn_count','redeem_count','feed_inst','obs','xm','zao','j17_day_talk','mian_deal'].forEach(k=>{
+    ['pawn_count','redeem_count','feed_inst','obs','xm','zao','j17_day_talk','mian_deal',
+     'towerWeek','finance_cd','black_cd','th25day','objection','gym','met_mian_day'].forEach(k=>{
       if(s.flags[k]!==undefined && typeof s.flags[k]!=='boolean'){
         const n=Math.floor(+s.flags[k]); s.flags[k]=(isFinite(n)&&n>=0)?n:0;
       }
@@ -368,8 +369,11 @@ function hudHTML(){
   </div>`;
 }
 function toast(msg){
+  /* 几乎全部状态回执都走 toast:存档确认/余额不足/关系升档/典当结果——
+     没有 live 区,读屏对它们完全静默。role=status 即 aria-live=polite。 */
   const t=h('div','toastBox',
-    `<div class="toastHead"><span class="tDot"></span>梦巢云算 · 系统通知</div><p class="toastMsg">${msg}</p>`);
+    `<div class="toastHead" aria-hidden="true"><span class="tDot"></span>梦巢云算 · 系统通知</div><p class="toastMsg">${msg}</p>`);
+  t.setAttribute('role','status');
   /* 堆叠:多条通知连发时纵向错开,不再糊在同一坐标上互相盖字。 */
   const stack=document.querySelectorAll('.toastBox').length;
   t.style.cssText=`position:fixed;left:50%;top:${12+stack*9}%;transform:translateX(-50%);z-index:75;max-width:320px`;
@@ -413,6 +417,7 @@ function setScene(key){
   /* home/bedroom 是默认态,不算"到达" */
   if(name && key!=='home' && key!=='bedroom' && !document.querySelector('.locStamp')){
     const st = h('div','locStamp',name);
+    st.setAttribute('role','status');   // "到哪儿了"此前只有 1.6s 视觉红章
     document.body.appendChild(st);
     setTimeout(() => st.remove(), 1700);
   }
@@ -442,15 +447,20 @@ function runPages(pages, done, opts={}){
   mount.innerHTML='';
   const frame=h('div','vnFrame');
   const head=h('div','vnHead');
-  const portrait=h('div','vnPortrait','🙂');
+  const portrait=h('div','vnPortrait','🙂'); portrait.setAttribute('aria-hidden','true');
   const namePlate=h('div','vnName','');
   head.append(portrait,namePlate);
   const textBox=h('div','vnText');
+  /* 长页底部键盘不可达:滚动容器需要可聚焦才有键盘滚动。 */
+  textBox.setAttribute('tabindex','0'); textBox.setAttribute('role','region'); textBox.setAttribute('aria-label','剧情文本');
   const deltaBox=h('div','vnDelta');
   deltaBox.setAttribute('role','status');
-  const nextCue=h('div','vnNext','▼');
+  /* vnText 逐字打字不能开 live(会逐字念);每页落定后把全文写进隐藏 live 区,
+     aria-atomic 让它被整页播报一次。 */
+  const live=h('div','srOnly'); live.setAttribute('aria-live','polite'); live.setAttribute('aria-atomic','true');
+  const nextCue=h('div','vnNext','▼'); nextCue.setAttribute('aria-hidden','true');
   const choiceRow=h('div','vnChoices');
-  frame.append(head,textBox,deltaBox,nextCue,choiceRow);
+  frame.append(head,textBox,deltaBox,nextCue,choiceRow,live);
   let nextDelta='';
   mount.appendChild(frame);
   if(!opts.host){ vn.classList.add('on'); app.classList.add('dimmed'); app.inert=true; }
@@ -493,6 +503,7 @@ function runPages(pages, done, opts={}){
     clearTimeout(typing); full=str; textBox.textContent='';
     nextCue.classList.remove('on');
     const plain=stripTags(str);
+    live.textContent=plain;   // 逐字渲染不可 live——落定后整页由隐藏 live 区播报一次
     let k=0;
     /* 标点停顿:逗号 80ms/句读 160ms——文字游戏的呼吸感 */
     function typeStep(){
@@ -1007,7 +1018,7 @@ function openSaveSlots(){
   const modal=h('div','modal');
   const paper=h('div','paper savePaper');
   modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true');
-  paper.innerHTML=`<header>存档 <small>三槽 · 覆盖需确认</small></header><div class="body"></div>`;
+  paper.innerHTML=`<header>存档 <small>三槽 · 覆盖需确认</small></header><div class="body" tabindex="0" role="region" aria-label="弹窗正文"></div>`;
   const body=paper.querySelector('.body');
   const close=mkBtn('取消','meek',()=>modal.remove());
   let busy=false;
@@ -1057,7 +1068,9 @@ function startDay(){
      刷新一下就能绕过全游戏唯一的强制静养日。 */
   const resting = G.flags.th25day===G.day && G.day<=30;
   if(resting) G.flags.th25done=1;
-  if(!D.offers) D.offers=['biaozhu','render'];
+  /* 缺省值回写会把运行期数据烙进共享 DAYS 源数据(同会话下局带上局的痕迹)——
+     改为局部变量,DAYS 保持只读。 */
+  const offers=D.offers||['biaozhu','render'];
 
   app.innerHTML=hudHTML();
   const head=h('div','',`<div class="dayHead"><span class="dayTag">试用期 · NEURAL MUTUAL PROGRAM</span><span class="dayNo">№ 3409-02 · D${String(G.day).padStart(2,'0')}</span></div><div class="dayTitle">白天${D.life_note?`<span class="dayNote">${D.life_note}</span>`:''}</div>`);
@@ -1098,7 +1111,7 @@ function startDay(){
       ?`现有 ₡${G.coins} · 本周固定 ≈ ₡${fixed}`
       :`现有 ₡${G.coins} / ₡${nextCost}(本件) · 还需 ₡${(arcTotal-redeemedSum).toLocaleString()} · 本周固定 ≈ ₡${fixed}`;
     return `<div class="goalLabel">${label}</div>
-      <div class="goalBar"><i style="width:${pct}%"></i></div>
+      <div class="goalBar" role="progressbar" aria-label="赎回目标进度" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
       <div class="goalVal">${val}</div>
       ${G.day===1?'<div class="goalFlow">今日流程:选一份睡班 → 用掉 1 次生活行动 → 开始今晚的睡班</div>':''}`;
   })();
@@ -1147,8 +1160,8 @@ function startDay(){
        ② 任何一天至少留一单可接,否则玩家会被卡死在"没钱付租金"的死路上。 */
     const openable = c => !!c && (c.union ? !!G.flags.union_helped : true)
                         && (c.id==='black' || (c.tier||0)<=G.stars);
-    const gateOn = D.offers.some(cid=>openable(CONTRACTS[cid]));
-    D.offers.forEach(cid=>{
+    const gateOn = offers.some(cid=>openable(CONTRACTS[cid]));
+    offers.forEach(cid=>{
       const c=CONTRACTS[cid];
       if(!c) return;
       if(c.union && !G.flags.union_helped){
@@ -1205,7 +1218,8 @@ function startDay(){
         <div class="cmeta"><span class="money">${contractMoney(p)}</span><span>污染风险 ${p.risk}%</span><span>情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}</span></div>
         <div class="cNote">${c.id==='finance'?'金融分成 0.6–1.4× 随机 · ':''}入睡本身损耗情绪 −3 · 实到手 = 卡面报酬 × 当夜数据质量(最低 8 折;评分规则见晨间读数旁的 i)</div>
         <div class="riskBar"><i style="width:${Math.min(100,c.risk*3)}%"></i></div>`;
-      card.setAttribute('aria-label',`${c.name},${c.desc.replace(/\n+/g,' ')}`);
+      /* aria-label 会整段盖掉内文——报酬/风险/情绪此前从读屏名里全丢。 */
+      card.setAttribute('aria-label',`${c.name},${c.desc.replace(/\n+/g,' ')},${contractMoney(p)},污染风险 ${p.risk}%,情绪 ${p.moodDelta>0?'+':''}${p.moodDelta}`);
       bindActivate(card,()=>{ AUDIO.SFX.soft(); openContract(cid); });
       cwrap.appendChild(card);
     });
@@ -1442,7 +1456,7 @@ function openPawn(done){
   const modal=h('div','modal');
   modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true');
   const paper=h('div','paper');
-  paper.innerHTML=`<header>鱼骨典当行 <small>只收不问 · 余额 <b class="pawnCoins">₡${G.coins}</b></small></header><div class="body"></div>`;
+  paper.innerHTML=`<header>鱼骨典当行 <small>只收不问 · 余额 <b class="pawnCoins">₡${G.coins}</b></small></header><div class="body" tabindex="0" role="region" aria-label="弹窗正文"></div>`;
   const body=paper.querySelector('.body');
   /* 幂等守卫:典当/赎回成功后本弹窗会在 700ms 后自动重开(刷新状态),
      期间按钮仍在 DOM 里且可点。若不加锁,连点/双击同一枚按钮会重复结算
@@ -1540,7 +1554,7 @@ function openContract(cid, rush){
   const tk=(window.getMontage&&getMontage(cid,Math.min(3,workNo)))?getMontage(cid,Math.min(3,workNo)).ticket:'工单 #?-3409';
   paper.innerHTML=`
     <header>共惠计划 · 睡班合同 <small>${tk}</small></header>
-    <div class="body">
+    <div class="body" tabindex="0" role="region" aria-label="弹窗正文">
       <p class="t" style="margin:0 0 8px"><b><span class="cicon">${cIcon(cid)}</span> ${c.name}</b> — ${c.desc}</p>
       <p class="contractPreview" style="margin:0"></p>
       <h5>条款(节选)</h5>
@@ -1582,10 +1596,12 @@ function openContract(cid, rush){
   affixIds.forEach(aid=>{
     const a=AFFIXES[aid];
     const btn=h('button','affix',`<b>加签 · ${a.name}</b>${a.desc}`);
+    btn.setAttribute('aria-pressed','false');
     btn.addEventListener('click',()=>{
       AUDIO.SFX.soft();
-      if(picked===aid){ picked=null; btn.classList.remove('picked'); renderPreview(); return; }
+      if(picked===aid){ picked=null; btn.classList.remove('picked'); btn.setAttribute('aria-pressed','false'); renderPreview(); return; }
       picked=aid;
+      btn.setAttribute('aria-pressed','true');
       affixRow.querySelectorAll('.affix').forEach(x=>x.classList.remove('picked'));
       btn.classList.add('picked');
       renderPreview();
@@ -1744,6 +1760,15 @@ function showPrologue(done){
   }
   go.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); advance(); });
   el.addEventListener('click',advance);
+  /* 序章同 twist:inert 断了底层,键盘需要自己的 Enter/Space 通道。 */
+  const keyAdv=e=>{
+    if(finished||!el.isConnected){ document.removeEventListener('keydown',keyAdv); return; }
+    if(e.key!=='Enter' && e.key!==' ') return;
+    if(e.target.closest && e.target.closest('button')) return;
+    e.preventDefault(); advance();
+  };
+  document.addEventListener('keydown',keyAdv);
+  try{ go.focus(); }catch(e){}
   show(lines[0]);
 }
 
@@ -1799,9 +1824,6 @@ function showCodex(){
     ['抗眠素','每小时一支,连用三十七年。有人把"休息"也卖掉了。',()=>!!G.flags.j17],
     ['人格模型','由数百万供体大脑微调而成。乌托邦的真正货源。',()=>!!(G.flags.T8||(G.flags.xm||0)>=1)],
     ['海','穹顶之外。沉没的城市上方,人类为自己点的最后一片灯。',()=>!!G.flags.sea13],
-    ['突触秒','人脑算力的计量单位。你的睡班按突触秒计价:普通单约 1×10⁹ / 夜,高负载单可达 3.4×10⁹。',()=>G.day>=5],
-    ['梦税','梦境内容授权税。你做的梦被再利用时,你向系统支付"内容上架费"。',()=>G.day>=8],
-    ['清醒区','天际线之上,不用睡班的人住的楼层。他们购买你的算力产出,全程清醒。',()=>!!G.flags.patron_met],
     ['授权费','情感锚点授权费,每周五十。你为植入的记忆付房租。',()=>!!G.flags.fee_seen],
     ['晚霞','渲染农场最贵的品类。客户要求"像回忆里那样"。回忆是谁的回忆,系统没说。',()=>!!G.flags.render_done]
   ];
@@ -1811,11 +1833,14 @@ function showCodex(){
     const tabsRow=h('div','codexTabs');
     [['who','人物'],['truth','真相'],['mem','记忆'],['gloss','词条'],['world','世界']].forEach(([k,label])=>{
       const b=h('button','codexTab'+(tab===k?' on':''),label);
+      b.setAttribute('aria-selected', tab===k?'true':'false');
       b.addEventListener('click',()=>{ AUDIO.SFX.soft(); render(k); });
       tabsRow.appendChild(b);
     });
     box.appendChild(tabsRow);
+    /* 五页档案 30+ 行必然溢出——滚动容器要可聚焦才有键盘滚动。 */
     const body=h('div','codexBody');
+    body.setAttribute('tabindex','0'); body.setAttribute('role','region'); body.setAttribute('aria-label','档案正文');
     if(tab==='who'){
       Object.entries(GUESSES).forEach(([id,c])=>{
         const un=c.when();
@@ -2228,8 +2253,12 @@ function nightLeadPage(cid){
       ? '今晚池子没叫你。\n\n你在家煮了半锅清水面,没有蛋。\n\n面娘的蛋今天算你赚了 —— 这是这座城里唯一一笔不会被抽成的收入。'
       : '散热量比昨夜低了 0.4。\n\n系统把这条记进了"体检数据",备注写得很客气:\n\n"矿机进食状况良好。"\n\n它们连你吃没吃饱都在监测,只是不为它付钱。',
     partjob: idle
-      ? '便利店的零工干了四小时,₡80。\n\n不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。'
-      : '今天的工时:四小时,₡80。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"',
+      ? (G.flags.partjob_ot
+        ? '便利店的零工干了五小时,₡100。\n\n多补的那一小时货,不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。'
+        : '便利店的零工干了四小时,₡80。\n\n不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。')
+      : (G.flags.partjob_ot
+        ? '今天的工时:五小时,₡100。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"'
+        : '今天的工时:四小时,₡80。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"'),
     clinic: idle
       ? '诊所的账单 ₡150 已经开好。\n\n今晚没有产出,所以这一天在你人生账本上是纯支出。\n\n医生没说出口的那句话,比账单更贵。'
       : '诊所的数据同步过来了。\n\n池子比你先看到那份神经检测报告 —— 它每晚都在看。\n\n它只关心一件:今夜的数据质量,是否仍然达标。',
@@ -2336,6 +2365,9 @@ function startDream(spec){
      旧版固定"按住污染体拖拽净化 · 点触收集碎片":净化其实要持续按住、逃逸后重按,
      追踪是点中三次;横屏下这条提示还落在视口外,玩家根本看不到。 */
   const tip=h('div','dreamTip');
+  /* 节点指引与净化/追逐/收集进度都在这里更新——加 live 区,
+     否则非视觉玩家做 collect/chase 只有音效反馈,不知道还剩几个。 */
+  tip.setAttribute('role','status');
   app.insertBefore(tip, stage);
   const guideText=n=>{
     if(!n) return '夜班开始 · 按屏幕提示操作';
@@ -2514,7 +2546,7 @@ function doPurify(stage, node, done){
      失败时玩家只看到"它挣脱了",不知道规则,也没有再来一次的反馈。 */
   const hud=h('div','purifyHud',
     `<span class="phName">${node.name||'污染体'}${node.calm?' · <span style="color:#3BA55D">平静</span>':''}</span>`+
-    `<span class="phBar"><i style="width:0%"></i></span>`+
+    `<span class="phBar" role="progressbar" aria-label="净化倒计时"><i style="width:0%"></i></span>`+
     `<b class="phTime">${(budget/1000).toFixed(1)}s</b>`);
   stage.appendChild(hud);
   const phBar=hud.querySelector('.phBar i');
@@ -2530,8 +2562,8 @@ function doPurify(stage, node, done){
     e.preventDefault();
     if(e.repeat) return;
     blot.classList.remove('hint');
-    holding=!holding;
-    hud.classList.toggle('holding',holding);
+    holding=holding?false:'key';
+    hud.classList.toggle('holding',!!holding);
     if(holding) AUDIO.SFX.soft();
   });
   blot.addEventListener('blur',()=>{ holding=false; hud.classList.remove('holding'); });
@@ -2557,9 +2589,10 @@ function doPurify(stage, node, done){
     const R=Math.max(15, (blot.offsetWidth||110)/2/r.height*100);
     return Math.hypot(x-P.x, (y-P.y)*0.9) < R;
   }
-  function onDown(e){ if(hit(e)){ holding=true; hud.classList.add('holding'); AUDIO.SFX.soft(); } }
-  function onMove(e){ if(holding && !hit(e)){ holding=false; hud.classList.remove('holding'); } }
-  function onUp(){ holding=false; hud.classList.remove('holding'); }
+  /* holding 记来源:Enter 切出的键盘持有不能被一次无意的鼠标划过静默解除。 */
+  function onDown(e){ if(hit(e)){ holding='pointer'; hud.classList.add('holding'); AUDIO.SFX.soft(); } }
+  function onMove(e){ if(holding==='pointer' && !hit(e)){ holding=false; hud.classList.remove('holding'); } }
+  function onUp(){ if(holding==='pointer'){ holding=false; hud.classList.remove('holding'); } }
 
   let last=performance.now();
   function loop(){
@@ -2716,7 +2749,9 @@ function doChase(stage, node, done){
          结算单里也找不到它来过的痕迹。按逃逸体折算成一段碎片。 */
       if(G.loot){ G.loot.frag+=1; G.loot.coins+=40; }
       tip.textContent='污染体已截获 · 碎片 +1 · 分成 +₡40';
-      setTimeout(()=>{ b.remove(); tip.remove(); done(); }, 650);
+      /* 650ms 窗内宿主被摘(debug 跳日/回标题)时,done() 会在死 stage 上
+         推进 finish(),把夜结算屏叠到当前屏——doPurify 有同款 alive() 守卫,这里漏了。 */
+      setTimeout(()=>{ if(!G || !stage.isConnected) return; b.remove(); tip.remove(); done(); }, 650);
       return;
     } else {
       place();
@@ -2821,6 +2856,18 @@ function showTwist(id, done){
   }
   go.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); advance(); });
   el.addEventListener('click',advance);
+  /* 键盘推进:inert 之后键盘进不来底层,覆盖层自身需要 Enter/Space 等价物。
+     焦点在按钮上时走原生激活(继续/选项各自处理),其余位置 Enter 等价点屏幕。 */
+  const keyAdv=e=>{
+    if(el.__dead||closed) { document.removeEventListener('keydown',keyAdv); return; }
+    if(e.key!=='Enter' && e.key!==' ') return;
+    if(e.target.closest && e.target.closest('button')) return;
+    e.preventDefault(); advance();
+  };
+  document.addEventListener('keydown',keyAdv);
+  const _close=close;
+  close=function(){ document.removeEventListener('keydown',keyAdv); _close(); };
+  try{ go.focus(); }catch(e){}
   show(typeof T.lines[0]==='function'?T.lines[0](G):T.lines[0]);
 
   function blackFlash(cb){
@@ -2842,7 +2889,7 @@ function showTransferLetter(done){
   const paper=h('div','paper');
   paper.innerHTML=`
     <header>梦巢云算 · 转正合同 <small>№ 3409-02 · 密件</small></header>
-    <div class="body">
+    <div class="body" tabindex="0" role="region" aria-label="弹窗正文">
       <p class="t" style="margin:0 0 8px">第三条:转正供体的中枢神经系统所有权,连同此后全部算力产出,一并让渡于梦巢云算,永久有效。</p>
       <p class="t" style="margin:0 0 8px">第九条:试用期评估不通过者,执行记忆格式化,重新进入安置流程。</p>
       <p class="t" style="margin:0">第十一条:试用期届满未提交书面异议者,视为自动转入永久供体。<br><b>异议通道:维护中(自 2081 年起)。</b></p>
@@ -3005,7 +3052,9 @@ function showEndingChoice(){
   app.appendChild(h('div','routeLine fadeIn',line));
   /* 三十天账本:自己的三十天被排成一行,像池子的账本(T9 具象) */
   if(Array.isArray(G.history) && G.history.length){
+    /* 30 行账本只能看见前 5 行——同样要可聚焦才能键盘滚到底。 */
     const tl=h('div','ledgerTL');
+    tl.setAttribute('tabindex','0'); tl.setAttribute('role','region'); tl.setAttribute('aria-label','三十天账本');
     const rr=h('div','ledgerRows');
     G.history.forEach((e2,i)=>{
       rr.appendChild(h('div','ledgerLine'+(i===G.history.length-1?' last':''),
@@ -3136,9 +3185,11 @@ function showEnding(id){
     }
     const p=h('p','eline fadeIn',lines[i++]);
     lineBox.innerHTML=''; lineBox.appendChild(p);
-    const b=mkBtn(i>=lines.length?'终':'继续','primary',next);
-    lineBox.appendChild(b);
+    /* 每行重建按钮=每行丢一次键盘焦点:换成常驻按钮只改文案,焦点不跳。 */
+    endBtn.textContent=(i>=lines.length)?'终':'继续';
+    lineBox.appendChild(endBtn);
   }
+  const endBtn=mkBtn('继续','primary',next);
   next();
 }
 
@@ -3159,6 +3210,13 @@ function showDebugBar(){
   mk('mem45',()=>{ if(G)G.mem=45; });
   [3,7,9,11,12,17,19,26,27,29,30].forEach(n=>{
     mk('D'+n,()=>{ if(!G) return; G.day=n; G.contract=null; G.weekEarn=0;
+      /* 跳日统一复位:dayClosed 不重置会在"跳回已睡过的日子"时
+         让 nextDay 直接 return——睡班按钮永久死(软锁)。
+         其余派生态同步归零,免得清晨块被旧 dayReady 跳过。 */
+      dayClosed=-1; nightLock=false;
+      G.dayReady=0; G.morningDay=0; G.lifeDone=false;
+      G.contractSnap=null; G.loot=null; G.__atSleep=null; G.pendingSettle=null;
+      G.flags.dayLead=0;
       setGlitch(0); G.flags.th25done=1; showMorning(); });
   });
   mk('污染',()=>{ if(G){ const id=taintFromNight(); toast('污染:'+memName(id||'')); } });
@@ -3198,6 +3256,8 @@ window.addEventListener('keydown',e=>{ if((e.key==='m'||e.key==='M') && !e.ctrlK
 $('#muteBtn').addEventListener('click',()=>{
   const m=AUDIO.toggleMute();
   $('#muteBtn').textContent = m?'✕':'♪';
+  $('#muteBtn').setAttribute('aria-pressed', m?'true':'false');
+  $('#muteBtn').setAttribute('aria-label', m?'声音:关':'声音:开');
   try{ localStorage.setItem('ss_mute', m?'1':'0'); }catch(e){}
   /* 解除静音要顺手唤醒环境声:ambientOn 只在首次 pointerdown 调过一次,
      若当时是静音,环境床与纹理层会一直沉睡到会话结束。 */

@@ -98,7 +98,8 @@ body.cracked #skyCrack{ height:42vh; opacity:.85; }
 #app{
   position:relative; z-index:10;
   max-width:680px; margin:0 auto;
-  padding:calc(14px + env(safe-area-inset-top)) 16px calc(30px + env(safe-area-inset-bottom));
+  /* 横屏刘海机:左右 inset 每侧可达 ~47px,16px 固定边距会把 HUD/卡片顶进缺口区 */
+  padding:calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(30px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   height:100vh; height:100dvh;
   overflow-y:auto; overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
@@ -398,7 +399,8 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
 /* ---------- 合同签署(仪式) ---------- */
 .modal{
   position:fixed; inset:0; z-index:40; background:rgba(20,16,12,.45);
-  display:flex; align-items:center; justify-content:center; padding:18px;
+  display:flex; align-items:center; justify-content:center;
+  padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
 }
 .paper{
@@ -532,7 +534,7 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
   letter-spacing:.42em; text-align:center; font-size:16px; margin-bottom:4px; color:#2A241B;
 }
 .doc .sub{
-  text-align:center; color:#9A8C74; margin-bottom:14px; letter-spacing:.18em;
+  text-align:center; color:#6E5F45; margin-bottom:14px; letter-spacing:.18em;
   /* 320px 机上 nowrap 会把"23:47"签名时刻裁掉;字号随视口收缩,超窄允许折行 */
   font-size:min(10px,2.6vw); white-space:normal; font-family:var(--f-sys);
 }
@@ -555,8 +557,10 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
 }
 /* 章:双圈朱砂,盖在纸上的墨 */
 .doc .stamp{
+  /* inline-block 盒的 margin-left:auto 算成 0——章永远贴左;
+     block+max-content 才能让 auto 把它推到右缘。 */
   margin-top:16px; margin-right:6px; margin-left:auto; width:max-content;
-  position:relative; display:inline-block; padding:10px 18px;
+  position:relative; display:block; padding:10px 18px;
   border:2.5px solid rgba(176,58,46,.8); border-radius:50%;
   box-shadow:inset 0 0 0 3px rgba(176,58,46,.12), inset 0 0 14px rgba(176,58,46,.14);
   color:rgba(176,58,46,.85); font-weight:900; letter-spacing:.18em;
@@ -726,7 +730,8 @@ body.gl3 #scanlines{ opacity:.9; }
   border-top:1px solid rgba(120,220,255,.25);
   border-radius:22px 22px 0 0;
   box-shadow:0 -18px 50px rgba(0,0,0,.45);
-  padding:16px 18px 18px 18px;
+  /* 全游戏最高频交互层:.vnNext 与末枚选项下缘会落在 Home 指示条带后 */
+  padding:16px 18px calc(18px + env(safe-area-inset-bottom)) 18px;
   color:#E7EEF8;
   animation:vnIn .35s ease both;
 }
@@ -796,6 +801,9 @@ body:not(.night) #vn .vnHead .vnPortrait{ border-color:var(--accent3) !important
 }
 .chapterCard .cline{ width:120px; height:1px; background:#3A3F52; }
 .chapterCard.out{ transition:opacity .8s; opacity:0; }
+
+/* 视觉隐藏但读屏可见:VN 整页播报区与状态提示的载体 */
+.srOnly{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 
 /* ---------- HUD 监测读数(兼容层) ---------- */
 .hud{ padding-right:60px; }
@@ -930,7 +938,7 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 }
 .doc .waBlock.up{ border-color:rgba(176,58,46,.5); background:#FAF0E7; }
 .doc .waBlock .waHead{
-  font-size:11px; letter-spacing:.2em; color:#8A7A5C; margin-bottom:6px; font-weight:700;
+  font-size:11px; letter-spacing:.2em; color:#6E5F45; margin-bottom:6px; font-weight:700;
 }
 .doc .waBlock.up .waHead{ color:#B03A2E; }
 .doc .waBlock .waLi{ font-size:12.5px; line-height:1.9; color:#5A4E3C; }
@@ -941,8 +949,10 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 }
 .doc .waBlock .waLi.cut b{ color:#B03A2E; }
 .doc .waNote{
-  margin-top:10px; font-size:11.5px; line-height:1.85; color:#9A8C74; font-style:italic;
+  margin-top:10px; font-size:11.5px; line-height:1.85; color:#6E5F45; font-style:italic;
 }
+/* 清算单里的星级此前只吃默认墨色——金色只 scope 在 .hud 下,单据上看不到星标 */
+.doc .starsTxt{ font-family:var(--f-sys); letter-spacing:.12em; color:var(--gold); }
 
 /* ---------- 档案 · 世界页 ---------- */
 .codexBody .waLi{ font-size:12.5px; line-height:1.85; color:var(--ink2); margin-top:5px; }
@@ -1015,11 +1025,12 @@ body.night .btn.danger{ color:#FFB4B6; }
   min-width:18px; text-align:right;
 }
 .hud .cell .hudInfo{
+  /* 视觉 16px,触控热区 ≥24px(WCAG 2.5.8):负 margin 吃掉外扩,布局不动 */
   width:16px; height:16px; border-radius:50%;
   border:1px solid var(--line); background:transparent; color:var(--ink2);
-  font:700 10px/14px -apple-system,sans-serif; padding:0; cursor:pointer;
+  font:700 10px/14px -apple-system,sans-serif; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
-  align-self:center;
+  align-self:center; padding:4px; margin:-4px;
 }
 .hud .cell .hudInfo:active{ transform:scale(.92); }
 
@@ -1149,7 +1160,9 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
 /* 横屏:舞台必须完整在首屏内,否则下半区不可达,提示也会掉到视口外 */
 @media (max-height:520px) and (orientation:landscape){
   #app{ padding-top:calc(6px + env(safe-area-inset-top)); padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
-  .hud{ gap:6px; padding:2px 2px 8px; }
+  /* padding 速记别把兼容层的 padding-right:60px 冲掉——否则 #muteBtn
+     正好压住 HUD 最右的评级格。 */
+  .hud{ gap:6px; padding:2px 60px 8px 8px; }
   .dayTag{ display:none; }
   .dayTitle{ font-size:19px; margin-bottom:2px; }
   .goalStrip{ margin:4px 0 0; padding:6px 10px; }
@@ -1185,7 +1198,7 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
 .sleepDock{
   position:fixed; left:50%; bottom:0; transform:translateX(-50%);
   width:100%; max-width:680px; z-index:20;
-  padding:8px 16px calc(10px + env(safe-area-inset-bottom));
+  padding:8px calc(16px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   background:linear-gradient(180deg, transparent, var(--bg) 38%);
   pointer-events:none;
 }

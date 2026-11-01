@@ -11,6 +11,10 @@ const FX = (() => {
   let bursts = [];
   let t = 0;
   let glitchFlash = 0;
+  /* 全项目最大幅的持续动画源此前完全不吃 prefers-reduced-motion。
+     减动效用户:常驻粒子归零、爆发/下坠/毛刺改极短淡出,氛围由场景图/CSS 承担。 */
+  const RM = (typeof matchMedia==='function' && matchMedia('(prefers-reduced-motion: reduce)'));
+  const reduced = ()=> !!(RM && RM.matches);
 
   const THEMES = {
     sea:    { hue:168, spread:36, speed:.55, count:230, trail:.13, size:[.6,2.2], glyph:0 },
@@ -45,6 +49,7 @@ const FX = (() => {
 
   function seed(){
     parts = [];
+    if(reduced()) return;   // 减动效:不铺常驻粒子,画布只剩底色
     const th = THEMES[theme] || THEMES.sea;
     /* 路线显影:主导轴≥3 时,海的颜色被你的路线染过
        (体制更冷 -16,人性更暖 +8;routeHueShift 由 main.js 提供,未加载时为 0) */
@@ -67,6 +72,8 @@ const FX = (() => {
   function setMode(m, th){
     mode = m; if (th) theme = th;
     document.body.classList.toggle('night', m !== 'day');
+    /* 爆发粒子/毛刺闪是上一屏的余温——跨屏(回标题/清晨)还飘 2-3s 是残影不是氛围。 */
+    bursts = []; glitchFlash = 0;
     ctx.fillStyle = bodyBg(); ctx.fillRect(0,0,W,H);
     seed();
   }
@@ -165,6 +172,7 @@ const FX = (() => {
   }
 
   function burst(x, y, hue, n=26){
+    if(reduced()) return;
     for (let i=0;i<n;i++){
       const a = Math.random()*Math.PI*2, v = 1+Math.random()*4;
       bursts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v,
@@ -173,6 +181,7 @@ const FX = (() => {
     }
   }
   function fall(){ // 下坠转场:UI 碎裂粒子
+    if(reduced()) return;
     for (let i=0;i<200;i++){
       bursts.push({
         x: W*0.15 + Math.random()*W*0.7,
@@ -183,7 +192,7 @@ const FX = (() => {
       });
     }
   }
-  function glitch(frames=8){ glitchFlash = frames; }
+  function glitch(frames=8){ glitchFlash = reduced()?2:frames; }
 
   resize(); seed(); requestAnimationFrame(step);
   return { setMode, burst, fall, glitch, get mode(){return mode;} };
