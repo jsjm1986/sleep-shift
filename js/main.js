@@ -1241,8 +1241,14 @@ function startDay(){
       cwrap.appendChild(card);
     }
     /* 裸睡回收价写在按钮上:此前"不签"的收益(梦里回收 +₡45)只在结算时才出现,
-       等于把一条经济选项藏起来。明示让"穷但想歇"成为可比的选项。 */
-    const no=mkBtn('不签,今晚裸睡 · 回收 +₡45','meek',()=>{ G.contract=null; G.contractSnap=null; G.flags.rush=0; toast('今晚不接单。梦里照样有产出,按回收价 ₡45 结算。'); });
+       等于把一条经济选项藏起来。明示让"穷但想歇"成为可比的选项。
+       按钮写着"今晚裸睡"就必须真进夜——此前它只 toast 不 sleep,
+       屏上两个"裸睡"按钮一真一假,点这个的玩家会以为按钮坏了(实测驱动器都中招)。
+       (本分支只在未签约时渲染;已签状态的改约走上面的「改签」按钮。) */
+    const no=mkBtn('不签,今晚裸睡 · 回收 +₡45','meek',()=>{
+      G.contract=null; G.contractSnap=null; G.flags.rush=0;
+      AUDIO.SFX.whoosh(); goSleep();
+    });
     cwrap.appendChild(no);
   }
   app.appendChild(cwrap);
