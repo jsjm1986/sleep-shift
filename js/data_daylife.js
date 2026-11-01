@@ -70,8 +70,9 @@ window.DAY_SCENE = {
       ];
     }
 
-    /* ② D20 便利店:017 交完班,坐在窗边。那个不能睡觉的人,白天在喝咖啡。*/
-    if(id==='partjob' && G.day>=19 && !G.flags.j17_day && (G.flags.j17||G.flags.T4)){
+    /* ② D20 便利店:017 交完班,坐在窗边。那个不能睡觉的人,白天在喝咖啡。
+       partjob 与 store 是同一家店——打零工或窗边坐坐,都能遇上他。*/
+    if((id==='partjob'||id==='store') && G.day>=19 && !G.flags.j17_day && (G.flags.j17||G.flags.T4)){
       G.flags.j17_day=1;
       return [
         '窗边坐着一个穿旧制服的男人,面前摆着第四杯咖啡,一口没动。',

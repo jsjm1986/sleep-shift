@@ -130,7 +130,9 @@ function setMeta(m){ lsSet(SAVE_PREFIX+'meta', JSON.stringify(m)); }
 function pastMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'past')||'null'); }catch(e){ return null; } }
 function writePast(endingId){
   const p=pastMeta()||{runs:0};
-  p.runs=(p.runs||0)+1;
+  /* 卷宗号按"完成的一局"计,不按"看过几遍结局页"计——
+     自动档停在 D30 白天,重进再睡再选会让同一局 +N 个卷宗。 */
+  if(!G.flags.runsCounted){ G.flags.runsCounted=1; p.runs=(p.runs||0)+1; }
   p.route=Object.assign({}, G.route||{ren:0,zhen:0,zhi:0});
   p.verdict=domAxis(2);
   /* 关系温度一并归档:他们会登记你认识谁——都是数据质量的一部分。 */
@@ -214,7 +216,19 @@ function normalizeSave(s){
   const has=(o,k)=>!!o && Object.prototype.hasOwnProperty.call(o,k);
   if(s.contract!=null && !has(CONTRACTS,s.contract)) s.contract=null;
   if(s.affix!=null && !has(AFFIXES,s.affix)) s.affix=null;
-  MEMORIES.forEach(m=>{ if(!s.mems[m.id]) s.mems[m.id]=m.pre?'pawned':'full'; });
+  /* 快照与记忆状态同样要白名单:坏档里的死快照(cid 不存在)会让结算读空指针;
+     非法 mems 值会让该记忆"不能当/不能赎/不能净化"地永久卡死。 */
+  if(s.contractSnap){
+    /* 快照必须整体可信:cid 合法但数值字段被改过的存档,不能带着篡改后的
+       冻结价进结算。逐项校验,任何一项异常即整份作废(按未签处理)。 */
+    const sn=s.contractSnap;
+    const numOk=v=>typeof v==='number'&&isFinite(v)&&Math.abs(v)<=200000;
+    if(!sn.cid || !has(CONTRACTS,sn.cid)
+       || !numOk(sn.earn) || !numOk(sn.risk) || !numOk(sn.moodDelta) || !numOk(sn.memCost)
+       || !(sn.minEarn===undefined||numOk(sn.minEarn)) || !(sn.maxEarn===undefined||numOk(sn.maxEarn)))
+      s.contractSnap=null;
+  }
+  MEMORIES.forEach(m=>{ if(!['full','tainted','pawned'].includes(s.mems[m.id])) s.mems[m.id]=m.pre?'pawned':'full'; });
   return s;
 }
 
@@ -356,7 +370,13 @@ function runPages(pages, done, opts={}){
      否则连点/重复触发会让旧序列的 click 监听器残留在宿主上,
      它的 done 回调会在"已经翻页之后"才触发,把 G.day 与在途流程错开。 */
   const token={dead:false};
-  if(mount.__vnToken) mount.__vnToken.dead=true;
+  if(mount.__vnToken){
+    /* 被取代的旧序列:cleanup 永不执行时,它的 click/keydown 监听会一直留在宿主上
+       逐次累积。置 dead 之外,还要把监听真的拆掉。 */
+    mount.__vnToken.dead=true;
+    if(mount.__vnToken.tap) mount.removeEventListener('click',mount.__vnToken.tap);
+    if(mount.__vnToken.keyTap) document.removeEventListener('keydown',mount.__vnToken.keyTap);
+  }
   mount.__vnToken=token;
 
   mount.innerHTML='';
@@ -373,8 +393,8 @@ function runPages(pages, done, opts={}){
   frame.append(head,textBox,deltaBox,nextCue,choiceRow);
   let nextDelta='';
   mount.appendChild(frame);
-  if(!opts.host){ vn.classList.add('on'); app.classList.add('dimmed'); }
-  const cleanup=()=>{ token.dead=true; clearTimeout(typing); typing=null; mount.removeEventListener('click',tap); if(!opts.host){ vn.classList.remove('on'); app.classList.remove('dimmed'); } mount.innerHTML=''; };
+  if(!opts.host){ vn.classList.add('on'); app.classList.add('dimmed'); app.inert=true; }
+  const cleanup=()=>{ token.dead=true; clearTimeout(typing); typing=null; mount.removeEventListener('click',tap); document.removeEventListener('keydown',keyTap); if(!opts.host){ vn.classList.remove('on'); app.classList.remove('dimmed'); app.inert=false; } mount.innerHTML=''; };
 
   function resolve(){
     while(i<pages.length){
@@ -445,7 +465,8 @@ function runPages(pages, done, opts={}){
       const b=mkBtn(c.label,'',()=>{
         if(finished) return;
         const before={coins:G.coins,mem:G.mem,mood:G.mood,stars:G.stars,route:(G.route?Object.assign({},G.route):null)};
-        if(c.fx) c.fx(G);
+        /* 选项 fx 裸调用时一抛即软锁:pendingChoices 下 tap 直接 return,无任何出口。 */
+        try{ if(c.fx) c.fx(G); }catch(e){}
         nextDelta=stateDelta(before,G);
         applyMood(); AUDIO.SFX.soft(); refreshHud();
         const lines=(c.lines||[]).map(l=>typeof l==='function'?(()=>{try{return l(G);}catch(e){return null;}})():l).filter(l=>l!=null);
@@ -494,6 +515,15 @@ function runPages(pages, done, opts={}){
     if(!pendingChoices){ i++; step(); }
   }
   mount.addEventListener('click',tap);
+  /* 纯文本页没有任何可聚焦元素,键盘玩家在第一个页序列即被卡死——
+     Enter/Space 等同翻页;焦点在按钮上时让浏览器原生点击生效,不重复触发。 */
+  const keyTap=e=>{
+    if((e.key!=='Enter'&&e.key!==' ')||e.repeat) return;
+    if(e.target.closest&&e.target.closest('button,[href],input,select,textarea,[data-pawn],[data-redeem]')) return;
+    e.preventDefault(); tap(e);
+  };
+  document.addEventListener('keydown',keyTap);
+  token.tap=tap; token.keyTap=keyTap;
   function step(){
     if(token.dead) return;
     if(i>=pages.length){ finished=true; cleanup(); done && done(); return; }
@@ -507,6 +537,11 @@ function runPages(pages, done, opts={}){
 function showTitle(){
   G=null;
   app.classList.remove('hasDock');
+  /* 回标题可能发生在 VN/覆盖层在途时:不清理会留下孤儿对话框
+     (done 回调继续推进流程),inert/dimmed 也会残留在壳上。 */
+  const _vn=document.getElementById('vn');
+  if(_vn){ _vn.classList.remove('on'); _vn.innerHTML=''; if(_vn.__vnToken) _vn.__vnToken.dead=true; }
+  app.classList.remove('dimmed'); app.inert=false;
   nightLock=false; dayClosed=-1;
   FX.setMode('day');
   setScene(null);
@@ -617,8 +652,6 @@ function showMorning(){
      原先这里只有一条"记忆 <80 时 30% 概率"的随机错认——那是通用的、和你的选择无关
      的噪音。现在把玩家昨天真的走过的那一步放在最前面,随机错认退到它后面。
      读出后立即清掉:回响只打一次,否则静养日/漏做的日子会把前天的下文重播。 */
-  if(G.flags.vitals){
-  }
   const leadId=(window.DAY_LEAD&&G.flags.dayLead)?G.flags.dayLead:null;
   const lead=leadId?window.DAY_LEAD.text[leadId]:null;
   const leadName=leadId?LIFE_NAME(leadId):null;
@@ -713,12 +746,14 @@ function bondOf(id){
     case 'r3409': return x.gift3409?3:((x.met_3409)?2:((x.fee_seen||x.clue_pawn)?1:0));
     /* j17_bond2 此前从未写入,温度封顶 1——7 条交底闲聊与 BOND_TEXT[2]全是死内容。
        坐下陪过他(j17_day_talk)=相熟 2;收下他的钥匙(j17_trust)=交底 3。 */
-    case 'j17': return x.j17_trust?3:((x.j17_bond2||x.j17_day_talk)?2:((x.j17||x.j17_day||x.T4)?1:0));
+    /* j17_bond2 是从未写入过的兼容位,移除:j17_day_talk 已是唯一的"相熟"凭据。 */
+    case 'j17': return x.j17_trust?3:(x.j17_day_talk?2:((x.j17||x.j17_day||x.T4)?1:0));
     default: return 0;
   }
 }
 function bondSum(){
-  return ['mian','yu','guardian','xiaoman','zao','r3409'].reduce((s,id)=>s+bondOf(id),0);
+  /* 键表必须与 BOND_IDS 同构——此前漏 j17,keeper 结局对 j17 重度玩家凭空变严。 */
+  return BOND_IDS.reduce((s,id)=>s+bondOf(id),0);
 }
 
 /* 角色消费页:你的产出,与剧中人在"楼上"相遇。
@@ -770,7 +805,26 @@ function afterMorning(){
   }
   if(D.storyAfter) seq.push(...D.storyAfter);
   if(D.audit) seq.push({__audit:true});
+  wrapSeqFx(seq, G.day);
   runSeq(seq);
+}
+/* 清晨剧情序列的副作用去重:自动存档在序列开始前落账,中途刷新会重放整段——
+   页 fx(+₡400/+₡600/xm++ 等)与选项 fx 每放一遍就再执行一次,可无限刷钱刷旗。
+   页照播(叙事不丢),副作用只发一次。 */
+function wrapSeqFx(seq, day){
+  seq.forEach((it,idx)=>{
+    if(!it||typeof it!=='object') return;
+    if(typeof it.fx==='function'){
+      const k='sqfx_'+day+'_'+idx, orig=it.fx;
+      it.fx=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+    }
+    if(Array.isArray(it.choices)) it.choices.forEach((c,j)=>{
+      if(c&&typeof c.fx==='function'){
+        const k='sqfx_'+day+'_'+idx+'_'+j, orig=c.fx;
+        c.fx=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+      }
+    });
+  });
 }
 function runSeq(seq){
   if(!seq.length){ startDay(); return; }
@@ -790,6 +844,7 @@ function runSeq(seq){
     AUDIO.SFX.clock47 && AUDIO.SFX.clock47();
     showAudit(a, ()=>{
       const rest=(a.pages||[]).slice();
+      wrapSeqFx(rest, G.day+'_a');   // 清算后页同样可能被读档重放
       if(a.twist) showTwist(a.twist, ()=>runSeq(rest));
       else runSeq(rest);
     });
@@ -802,7 +857,8 @@ function memThresholdPages(){
   const out=[];
   if(G.mem<25 && !G.flags.th25){
     G.flags.th25=1; G.mood=clamp(G.mood-10,0,100);
-    out.push('今天,医生给你开了一周的"静养"。\n\n公司批得飞快。\n\n快得像等这一天,已经很久了。');
+    /* 机制只停一晚,文案就别卖一周——不然第二天照常派单时,承诺就成了谎言。 */
+    out.push('今天,医生给你开了一天的"静养"。\n\n公司批得飞快。\n\n快得像等这一天,已经很久了。');
   } else if(G.mem<50 && !G.flags.th50){
     G.flags.th50=1; G.mood=clamp(G.mood-10,0,100);
     out.push('楼道里,阿枣朝你挥手。\n\n你看着她的脸,看了很久。\n\n"你是……哪位?"\n\n她手里的汽水,慢慢放下了。');
@@ -1229,10 +1285,12 @@ function unionScene(){
     G.mood=clamp(G.mood+1,0,100);
   }
   applyMood();
-  /* 串门层(v2.17):守望者只在认识你之后开口(bond≥1;不与陌生人说话)。 */
-  const gchat=window.chatPage&&chatPage('guardian',G);
+  /* 串门层(v2.17):守望者只在认识你之后开口(bond≥1;不与陌生人说话)。
+     而"站台空无一人/没找到守望者"的分支里,她的闲聊与"赞助的"台词更不能拼接——
+     她只在据点真的开张(union_helped)后在场。 */
+  const gchat=G.flags.union_helped?chatPage('guardian',G):null;
   if(gchat) pages=pages.concat([{ who:'guardian', text:gchat.text }]);
-  const uext=(window.LIFE_EXTRA&&LIFE_EXTRA.metro)||null;
+  const uext=G.flags.union_helped?((window.LIFE_EXTRA&&LIFE_EXTRA.metro)||null):null;
   if(uext) pages=pages.concat(uext);
   const before={}; BOND_IDS.forEach(id=>before[id]=bondOf(id));
   runPages(pages, ()=>{
@@ -1400,12 +1458,12 @@ function openContract(cid, rush){
 
   /* 取消签约=急单作废:G.flags.rush 只在结算时清,改签/不签/裸睡
      都会带着急单价入睡——三条出口统一清。 */
-  const close=mkBtn('先不签了','meek',()=>{ G.affix=null; G.contract=null; G.contractSnap=null; G.flags.rush=0; modal.remove(); startDay(); });
+  const close=mkBtn('先不签了','meek',()=>{ cancelled=true; G.affix=null; G.contract=null; G.contractSnap=null; G.flags.rush=0; modal.remove(); startDay(); });
   const foot2=h('div','center'); foot2.appendChild(close); paper.querySelector('footer').appendChild(foot2);
 
   const area=paper.querySelector('.signArea');
   const chip=paper.querySelector('.signChip');
-  let dragging=false, movedFar=false, off={x:0,y:0}, signedDone=false, downX=0, downY=0;
+  let dragging=false, movedFar=false, off={x:0,y:0}, signedDone=false, cancelled=false, downX=0, downY=0;
 
   // 名牌位置 = 视口坐标 (vx,vy),换算到名牌实际定位容器(offsetParent = .signRow)
   const placeChip=(vx,vy)=>{
@@ -1424,7 +1482,9 @@ function openContract(cid, rush){
     return cr.left<ar.right-8 && cr.right>ar.left+8 && cr.top<ar.bottom-8 && cr.bottom>ar.top+8;
   };
   const doSign=()=>{
-    if(signedDone) return; signedDone=true;
+    /* 飞行中的签名有 520ms 动画窗——窗口内点"先不签了"必须真的取消,
+       否则弹窗已关、合同仍生效。 */
+    if(signedDone||cancelled||!modal.isConnected) return; signedDone=true;
     area.classList.add('signed');
     area.textContent='林 晚';
     chip.style.display='none';
@@ -1508,7 +1568,7 @@ function showPrologue(done){
        玩家不知道自己为什么要点那个"赎回"按钮。
        顺带把算术摆平:30 夜 × ₡120 = ₡3,600 < ₡4,500。
        也就是说,**老老实实干活永远赎不回她**——这个不等式就是整个游戏。 */
-    '还有一笔账,压在第一页最下面:\n\n你妹妹的脸,三年前典当了 ₡1,500。\n\n赎回价是三倍:₡4,500。\n\n按最稳的活儿一夜 ₡120 算,是 37 个夜晚。\n\n而试用期,只有 30 天。',
+    '还有一笔账,压在第一页最下面:\n\n你妹妹的脸,三年前典当了 ₡1,500。\n\n赎回价是三倍:₡4,500。\n\n按最稳的活儿一夜 ₡120 算,是 38 个夜晚。\n\n而试用期,只有 30 天。',
     '至于他们要从你身上挖什么——\n\n合同第一页写的是"蛋白质折叠、气候模拟、及其他"。\n\n"及其他"这三个字,值 ₡400 一周。',
     '白天,你是自由的。晚上,你的大脑在替城市出算力。\n\n明码标价,自愿签署,童叟无欺。',
     '——《神经共惠计划》\n\n试用期:30 天。\n\n今日,生效。'
@@ -1932,6 +1992,8 @@ function settleContract(){
       taintedList().slice(0,2).forEach(id=>{
         nodes.push({type:'purify',name:'污染体 · '+memName(id),tainted:id});
       });
+      /* 已读工单+命中污染的夜,白天那一步会整条丢页:注入到意外序列开头。 */
+      if(lead) nodes.unshift({type:'pages',pages:[lead.text.join('\n\n')]});
       if(Math.random()<0.5) nodes.push({type:'echo', id:pickEchoId()});
       if(Math.random()<0.35) nodes.push({type:'chase', n:3, name:'逃逸污染体'});
       if(Math.random()<0.6) nodes.push({type:'collect', n:2+Math.floor(Math.random()*2)});
@@ -1969,17 +2031,21 @@ function settleContract(){
 }
 
 function quietNight(){
+  window.scrollTo(0,0); app.scrollTop=0;
   /* 裸睡防御性清急单:任何把玩家送进来的路径(改签回退/取消签约/未签直接睡)
      都不能带着急单价进回收结算。 */
   G.flags.rush=0; G.contractSnap=null;
   G.mood=clamp(G.mood+3,0,100);
   G.mem=clamp(G.mem+1,0,100);
+  /* 卡面承诺「回收 +₡45」必须真发——此前三个审计 agent 均实测全库无消费端,
+     裸睡是全游戏唯一承诺收益却永不兑现的入口。 */
+  G.coins+=45;
   applyMood();
   const lead=nightLeadPage(null);
   nightQuietPanel([
     '今晚没有合同。\n\n你睡了一个属于你自己的觉——\n\n在这个城市,这几乎算一种奢侈。',
     ...(lead?[lead.text.join('\n\n')]:[]),
-    '记忆完整性 +1% · 情绪回升',
+    '记忆完整性 +1% · 情绪回升 · 回收 +₡45',
     `【 今晚,池子没有叫你 】\n\n${nightLog(false)}`
   ]);
 }
@@ -1993,14 +2059,14 @@ function nightLeadPage(cid){
   const idle = !cid;
   const T={
     tower: idle
-      ? '你没有出工,但超频会的记录还在池里:\n\n"矿机主动申请深度睡眠。判定:服从性优。"\n\n今晚这两百块不算数,只是"服从性"三个字被记了一笔。'
+      ? '你没有出工,但超频会的记录还在池里:\n\n"矿机主动申请深度睡眠。判定:服从性优。"\n\n今晚这一百二十块不算数,只是"服从性"三个字被记了一笔。'
       : '超频会上登记的那次"自愿",今晚生效了。\n\n监测备注:本次深睡时长 +40 分钟,由矿机自行申请。\n\n补偿:无。它不需要补偿——它是你自己要的。',
     noodle: idle
       ? '今晚池子没叫你。\n\n你在家煮了半锅清水面,没有蛋。\n\n面娘的蛋今天算你赚了 —— 这是这座城里唯一一笔不会被抽成的收入。'
       : '散热量比昨夜低了 0.4。\n\n系统把这条记进了"体检数据",备注写得很客气:\n\n"矿机进食状况良好。"\n\n它们连你吃没吃饱都在监测,只是不为它付钱。',
     partjob: idle
-      ? '便利店的零工干了六小时,₡80。\n\n不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。'
-      : '今天的工时:六小时,₡80。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"',
+      ? '便利店的零工干了四小时,₡80。\n\n不够今夜的分成,但够今天的晚饭。\n\n池子没有叫你,于是你今天第一次,是靠醒着自己活下去的。'
+      : '今天的工时:四小时,₡80。\n\n今夜的工时:八小时,分成已结算。\n\n系统在两张表之间做了一次核对,结论是:\n\n"该矿机醒着时段的产出效率,显著低于睡眠时段。建议优化。"',
     clinic: idle
       ? '诊所的账单 ₡150 已经开好。\n\n今晚没有产出,所以这一天在你人生账本上是纯支出。\n\n医生没说出口的那句话,比账单更贵。'
       : '诊所的数据同步过来了。\n\n池子比你先看到那份神经检测报告 —— 它每晚都在看。\n\n它只关心一件:今夜的数据质量,是否仍然达标。',
@@ -2050,7 +2116,7 @@ function nextDay(){
   G.day++;
   if(G.day>30){ showEndingChoice(); return; }
   // weekEarn 按周累计,由大清算单展示后归零(见 showAudit),此处不可清零
-  G.contract=null;
+  G.contract=null; G.contractSnap=null;
   showMorning();
 }
 
@@ -2090,6 +2156,7 @@ function pickDanmaku(){
 }
 
 function startDream(spec){
+  window.scrollTo(0,0); app.scrollTop=0;
   setScene(null);
   if(window.AUDIO && AUDIO.setAmbient){ const dtex={sea:'lap',ledger:'hiss',metro:'rail',core:'hiss'}[spec.theme]||'lap'; AUDIO.setAmbient(72,108,.034,dtex); }
   FX.setMode('night', spec.theme||'sea');
@@ -2166,6 +2233,11 @@ function startDream(spec){
       const pe=G.pendingSettle; G.pendingSettle=null;
       /* 最后一班的账不能被结局页静默吞掉:钉在第 31 天抬头下的批注栏里。 */
       window.__endSettleLine=pe?settleLine(pe.earn,pe.af,pe.c&&pe.c.id,pe.q,pe.gross,pe.hs):null;
+      /* 三十天账本恒缺第 30 行:结局夜不走 nextDay,history.push 永不执行——
+         与 T9「第三十行已经写完」自相矛盾。补上最后一行。 */
+      if(Array.isArray(G.history)&&G.history.length<31&&!G.history.some(r=>r.d===G.day)){
+        G.history.push({d:G.day,tag:(G.contract&&CONTRACTS[G.contract]?CONTRACTS[G.contract].name.split('·')[0].trim():'裸睡'),mem:G.mem});
+      }
       showEndingChoice(); return;
     }
     const worked=!!G.contract;
@@ -2425,7 +2497,7 @@ function doCollect(stage, node, done){
 
 /* --- 追踪:点中瞬移的污染体三次 --- */
 function doChase(stage, node, done){
-  let hits=0; const needN=node.n||3;
+  let hits=0, doneCalled=false; const needN=node.n||3;
   const b=h('div','blot chase hint');
   b.dataset.name=node.name||'逃逸污染体';
   const tip=h('div','dreamTip','点中逃逸污染体 · 0/'+needN);
@@ -2440,6 +2512,8 @@ function doChase(stage, node, done){
     AUDIO.SFX.glitch(); FX.glitch(5);
     tip.textContent='点中逃逸污染体 · '+Math.min(hits,needN)+'/'+needN;
     if(hits>=needN){
+      if(doneCalled) return;
+      doneCalled=true;
       const br=b.getBoundingClientRect();
       FX.burst(br.x+br.width/2, br.y+br.height/2, 300, 30);
       /* 追上是要有回报的:此前整个追踪节点纯演出,点中 3 次零收益,
@@ -2465,7 +2539,9 @@ function doChase(stage, node, done){
 /* ================= 反转演出 ================= */
 function showTwist(id, done){
   const T=TWISTS[id]; if(!T){ done&&done(); return; }
-  if(G.seen.includes(id)){ T.fx&&T.fx(G); done&&done(); return; }
+  /* 已见证的反转被读档重放时:内容不再播,副作用也不再扣——
+     mood −10/−15 不是幂等写入,每重放一次就多扣一次。 */
+  if(G.seen.includes(id)){ done&&done(); return; }
   G.seen.push(id);
   FX.setMode('night','core');
   const el=h('div','twist');
@@ -2495,7 +2571,7 @@ function showTwist(id, done){
     if(finished) return;
     if(typing){ clearTimeout(typing); typing=null; tl.innerHTML=full; return; }
     i++;
-    if(i<T.lines.length){ AUDIO.SFX.glitch(); show(T.lines[i]); }
+    if(i<T.lines.length){ AUDIO.SFX.glitch(); show(typeof T.lines[i]==='function'?T.lines[i](G):T.lines[i]); }
     else finish();
   }
   function finish(){
@@ -2541,7 +2617,7 @@ function showTwist(id, done){
   }
   go.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); advance(); });
   el.addEventListener('click',advance);
-  show(T.lines[0]);
+  show(typeof T.lines[0]==='function'?T.lines[0](G):T.lines[0]);
 
   function blackFlash(cb){
     const bo=$('#blackout');
@@ -2591,6 +2667,7 @@ function showTransferLetter(done){
 
 /* ================= 大清算 ================= */
 function showAudit(audit, done){
+  window.scrollTo(0,0); app.scrollTop=0;
   audit = audit || {};
   setScene('audit');
   FX.setMode('day');
@@ -2607,7 +2684,6 @@ function showAudit(audit, done){
   /* 磨损按天确定(不再随机):玩家看过清算单后退出再进,重放的清算单必须
      是同一张——随机数会让"同一份文件"前后数字不一致,还可能被读档重刷。 */
   const wear=(G.flags.T1?2:1)+(G.day%2);
-  G.mem=clamp(G.mem-wear,0,100);
   let net=200-600;
   const fees=[];
   const wa=(window.worldAudit&&worldAudit(G.day))||null;
@@ -2615,6 +2691,9 @@ function showAudit(audit, done){
     // 世界观数据层提供了本周的完整费用明细
     wa.fees.forEach(f=>fees.push(f));
     G.flags.fee_seen=1;
+    /* 样本供体陪护费只收样本:拒签特批的人不是样本,这 20 块不能从天上扣下来。 */
+    if(!G.flags.feed_path)
+      for(let i=fees.length-1;i>=0;i--) if(String(fees[i][0]).indexOf('陪护')>=0) fees.splice(i,1);
   } else {
     if(G.day>=8){ fees.push(['梦税(梦境内容授权)',40]); }
     if(G.day>=8){ fees.push(['情感锚点授权费',50]); G.flags.fee_seen=1; }
@@ -2622,7 +2701,15 @@ function showAudit(audit, done){
     fees.push(['机架维护 · 散热液',300]);
   }
   fees.forEach(f=>{ net-=f[1]; });
-  G.coins+=net; applyMood();
+  /* 清算效果幂等:自动存档在剧情序列开始前已落账,玩家中途刷新会重放整段——
+     磨损/净额/评级每次重放都会再执行一遍(可重复扣租、更可刷星)。
+     文件照播,账只结一次。 */
+  const audited=!!G.flags['aud_'+G.day];
+  if(!audited){
+    G.mem=clamp(G.mem-wear,0,100);
+    G.coins+=net; applyMood();
+    G.flags['aud_'+G.day]=1;
+  }
   /* 评级在清算时升降 —— 清算大厅本来就是评级的地方,此前却是唯一不评级的场合。
      没有这条,星级只有"接黑单 -1"和"云梯塔 +1"两个来源:
      finance(tier 3)在 D15 首现,而 D6 之后下一次云梯塔是 D21,
@@ -2634,7 +2721,7 @@ function showAudit(audit, done){
   const taintedN=taintedList().length;
   const starNote=(()=>{
     if(G.mem>=70 && G.mood>=50 && taintedN===0){
-      G.stars=Math.min(5,G.stars+1);
+      if(!audited) G.stars=Math.min(5,G.stars+1);   // 重放不刷星
       /* 首满五星的专属批注:满级是"任务完成"的时刻,通用"评级上调"撑不住它。
          而池子的嘉奖,从来不应该是好听的。 */
       if(G.stars===5 && !G.flags.star5_seen){ G.flags.star5_seen=1;
@@ -2642,7 +2729,7 @@ function showAudit(audit, done){
       return '产出稳定,散热良好,无残留污染。评级上调。';
     }
     if(G.mem<45 || G.mood<32 || taintedN>0){
-      G.stars=Math.max(0,G.stars-1);
+      if(!audited) G.stars=Math.max(0,G.stars-1);
       return taintedN>0 ? `检出残留污染体 ${taintedN} 处。评级下调。(净化可恢复)`
                         : '折旧超标 / 散热不足。评级下调。';
     }
@@ -2689,6 +2776,7 @@ function showAudit(audit, done){
 
 /* ================= 结局 ================= */
 function showEndingChoice(){
+  window.scrollTo(0,0); app.scrollTop=0;   // 长档案页滚到半途进终局,结局卡不能埋在视口外
   FX.setMode('night','core');
   setGlitch(3);
   app.innerHTML='';
@@ -2744,7 +2832,9 @@ function showEndingChoice(){
     /* 三十天的最后一击不能是一指误触:第一次点亮只"呈报"结局,
        卡片底部出现确认行,再点一次才真正归档。 */
     let armed=false;
-    card.addEventListener('click',()=>{
+    card.tabIndex=0; card.setAttribute('role','button');
+    card.setAttribute('aria-label',`结局 ${E.name} —— 连续确认两次归档`);
+    bindActivate(card,()=>{
       if(!armed){ armed=true; card.classList.add('armed');
         card.querySelector('.cArm').textContent='再点一次 · 确认归档'; AUDIO.SFX.soft(); return; }
       AUDIO.SFX.chime(); showEnding(id);
@@ -2761,7 +2851,7 @@ function showEndingChoice(){
       '有一张卡没有亮起。它要求你记得更多——至少 88%。'],
     [(G.flags.mian_helped||G.flags.mian_deal) && G.route.ren<2,
       '有一张卡没有亮起。这一路,你把具体的人捞出来的次数,还不够多。'],
-    [(G.flags.xm||0)===1 && !G.flags.teach_dream,
+    [(G.flags.xm||0)>=1 && !G.flags.teach_dream,
       '有一张卡没有亮起。有人还在等你教她做梦。'],
     [!!G.flags.clue_pawn && (G.flags.pawn_count||0)<3,
       '有一张卡没有亮起。典当行只把柜台钥匙,交给卖掉过三次自己的人。'],
@@ -2772,6 +2862,7 @@ function showEndingChoice(){
 }
 
 function showEnding(id){
+  window.scrollTo(0,0); app.scrollTop=0;
   const E=ENDINGS[id];
   FX.setMode('night','core'); setGlitch(0);
   setScene(null);
@@ -2853,7 +2944,7 @@ function showDebugBar(){
 
 /* ================= 启动 ================= */
 window.addEventListener('pointerdown',function once(){ AUDIO.ambientOn(); window.removeEventListener('pointerdown',once); },{once:true});
-window.addEventListener('keydown',e=>{ if(e.key==='m') $('#muteBtn').click(); });
+window.addEventListener('keydown',e=>{ if((e.key==='m'||e.key==='M') && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target.closest&&e.target.closest('input,textarea,select'))) $('#muteBtn').click(); });
 /* 无障碍:模态焦点圈闭(审查报告遗留项)。
    弹窗打开即自动聚焦内部第一个可聚焦元素;Tab/Shift+Tab 循环限制在弹窗内;
    焦点意外落在弹窗外时拉回。不接管 Escape——部分弹窗(签约)是强制流程。 */
@@ -2885,7 +2976,14 @@ window.addEventListener('keydown',e=>{ if(e.key==='m') $('#muteBtn').click(); })
 $('#muteBtn').addEventListener('click',()=>{
   const m=AUDIO.toggleMute();
   $('#muteBtn').textContent = m?'✕':'♪';
+  try{ localStorage.setItem('ss_mute', m?'1':'0'); }catch(e){}
 });
+/* 静音偏好跨刷新保留:每次都从响亮开始,是把"安静"变成了一局一签的订阅。 */
+try{
+  if(localStorage.getItem('ss_mute')==='1' && window.AUDIO && !AUDIO.isMuted()){
+    AUDIO.toggleMute(); $('#muteBtn').textContent='✕';
+  }
+}catch(e){}
 /* title 在触屏上不可用;把关键规则做成可点/可键盘触达的回执。 */
 document.addEventListener('click',e=>{
   const info=e.target.closest && e.target.closest('[data-hudinfo]');

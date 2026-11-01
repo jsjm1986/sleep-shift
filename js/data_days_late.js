@@ -12,7 +12,7 @@ Object.assign(window.DAYS, {
   ],
   moodDelta:-3,
   fx:(G)=>{ G.flags.sawBadge=1; },
-  life:['bookstore','radio','partjob'],
+  life:['bookstore','radio','partjob','store'],
   offers:['biaozhu','render','finance','art']
 },
 
@@ -70,7 +70,9 @@ Object.assign(window.DAYS, {
     '"相邻供体的算力,是打包出售的。"他耸耸肩,拿起咖啡,"他们管这个叫——邻里。"\n\n(他走后你才发现:你的梦,原来从来不是一个人的房间。)'
   ],
   fx:(G)=>{ G.flags.neighbor=1; },
-  life:['noodle','partjob','zao','park'],
+  /* partjob→metro:D20 是急单日,守望者的"别接"必须在场;j17 的便利店交班戏
+     改由 D24/D29 的 store 与 D28 的 partjob 覆盖,不丢可达性。 */
+  life:['noodle','metro','zao','park'],
   offers:['biaozhu','render','finance','black','art']
 },
 
@@ -81,7 +83,7 @@ Object.assign(window.DAYS, {
     sub:'NEURAL MUTUAL AUDIT · WEEK 3 · 23:47',
     pages:[
       '大厅里,何主管把评估表转过来给你看。\n\n试用评估:优。',
-      '"另外,"他微笑,"公司想邀请您加入一个特别计划。"\n\n【样本供体 · 特批】。报酬是普通单的三倍,夜间有专人陪护。\n\n"当然,"他把笔轻轻放在桌上,"您自愿。"',
+      '"另外,"他微笑,"公司想邀请您加入一个特别计划。"\n\n【样本供体 · 特批】。除正常分成外,另发在职津贴——样本存续期间,每晨 ₡500。夜间有专人陪护。\n\n"当然,"他把笔轻轻放在桌上,"您自愿。"',
       { text:['笔,就在那里。'],
         choices:[
           { label:'接受特批', fx:(G)=>{ G.flags.feed_path=1; if(G.route)G.route.zhi++; G.mood=Math.max(0,G.mood-6); },
@@ -140,7 +142,7 @@ Object.assign(window.DAYS, {
           lines:['这一次,你没有翻别人的名单。你翻了自己的档案。\n\n第一页很普通:编号,评级,入住日期。\n\n第二页有一栏,叫"衍生价值"。\n\n结算记录:41 次。最近一次:昨天。\n\n你终于明白——你不是档案的读者。\n\n你是档案里的资产。'] },
         { label:'找守望者要证据', fx:(G)=>{ G.flags.clue_union=1; },
           lines:[
-            '她摊开一张全城地图。每一个亮点,是一台正在跑的矿机。\n\n"这张图,楼上的人每天晚上看一次。"她说,"像看天气预报。"\n\n"他们管这叫\'算力分布\'。"\n\n"我们管这叫——九百万个还在转的人。"',
+            '她摊开一张全城地图。每一个亮点,是一台正在跑的矿机。\n\n"这张图,楼上的人每天晚上看一次。"她说,"像看天气预报。"\n\n"他们管这叫\'算力分布\'。"\n\n"我们管这叫——四万多个还在转的人。"',
             '临走时她忽然问了一句你没料到的话:\n\n"如果真相需要有人替它值班——你愿意吗?"\n\n你没有回答。你把它记在了本子上。'
           ] },
         { label:'问鱼骨要总账', fx:(G)=>{ G.flags.clue_pawn=1; },
@@ -152,7 +154,7 @@ Object.assign(window.DAYS, {
           ] }
       ]}
   ],
-  life:['radio','bookstore','metro'],
+  life:['radio','bookstore','metro','store'],
   offers:['biaozhu','render','finance','black'],
   night:{ forced:{ theme:'ledger', title:'账簿 · 镜面房', taint:false, nodes:[
     { type:'pages', pages:[
@@ -164,7 +166,11 @@ Object.assign(window.DAYS, {
             lines:['指尖传来的不是玻璃的凉,是电流的麻。\n\n镜子里的"你"笑了,用你的嘴角,向一个你没见过的方向。\n\n"它在预演你。"你想起本子上的一句话,"在你睡着的每个夜里。"'] },
           { label:'后退,不碰', fx:(G)=>{ G.flags.mirror_seen=1; },
             lines:['你退到门口。镜子里的"你"退到同一个门口。\n\n一模一样。\n\n太一模一样了——真人是不会这么整齐的。'] }
-        ]},
+        ]}
+    ]},
+    /* closing 标记:appendNightNode 追加的剧情必须插到"你醒来时"之前,
+       否则玩家会先醒来、再梦——顺序颠倒。 */
+    { type:'pages', closing:true, pages:[
       '你醒来时,窗外的晴天刚刚升起。\n\n你对着镜子刷了牙。\n\n刷到一半,停了下来,多看了那面镜子一眼。'
     ]}
   ]}}
@@ -235,8 +241,8 @@ Object.assign(window.DAYS, {
 },
 
 29: {
-  morning:[ '今天,云背的"最深处"对你开放。', '你在房间里坐到天黑。\n\n哪里都没去。' ],
-  life:['park','zao','gym'],
+  morning:[ '今天,云背的"最深处"对你开放。', '白天比平时安静。\n\n你知道最后一班在夜里等你——在那之前,日子还是你自己的。' ],
+  life:['park','zao','store'],   /* gym→store:D29 是强制核心夜,没有净化节点,"云背行动更快"的加成兑现不了;换成便利店,也给 j17 交底一个白天窗口 */
   offers:['biaozhu','render'],
   night:{ forced:{ theme:'core', title:'云背 · 最深处', taint:false, nodes:[
     { type:'pages', pages:[

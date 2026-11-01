@@ -34,7 +34,11 @@ function appendStoryAfter(n, ...items){
 }
 function appendNightNode(n, node){
   const d = DAYS[n]; if(!d || !d.night || !d.night.forced) return;
-  d.night.forced.nodes.push(node);
+  const nodes = d.night.forced.nodes;
+  /* 追加的剧情在"醒来"之后就是穿帮:若该夜标了 closing 收尾节点,
+     新节点插到它前面,保证醒来永远是最后一拍。 */
+  const ci = nodes.findIndex(x=>x && x.closing);
+  if(ci>=0) nodes.splice(ci,0,node); else nodes.push(node);
 }
 const ren  = (G,n=1)=>{ G.route.ren += n; };
 const zhen = (G,n=1)=>{ G.route.zhen += n; };
@@ -62,7 +66,8 @@ DAYS[16].story = [
       { label:'这次不行', fx:(G)=>{ G.flags.mian_refused=1; G.mood=Math.max(0,G.mood-4); },
         lines:['她把铁盒收回去,笑得比你想象的平静:"没事。人间的事,哪有都凑手的。"'] },
       { label:'我帮你找鱼骨砍价', fx:(G)=>{ G.flags.mian_deal=1; ren(G); G.flags.clue_pawn=1; },
-        lines:['第二天,鱼骨看着你带来的面,沉默半晌,把"第一声妈"的赎回价降了一半。\n\n"这单亏的,"他嘬了口面汤,"记你账上。"'] }
+        lines:['第二天,鱼骨看着你带来的面,沉默半晌,把"第一声妈"的赎回价降了一半。\n\n"这单亏的,"他嘬了口面汤,"记你账上。"',
+               '他合上总账之前,你瞥见了压在最上面的一页:\n\n「情感锚点 · 采购源头:第 7 供体舱 · 单价:₡180,000」\n\n原来所有人当掉的,都流向同一个地方。\n\n包括她想赎回来的那一声。'] }
     ]},
   { text:['她要赎的,是儿子的"第一声妈"——三年前,她亲自典当的。\n\n"那年他病了,医院说,只有云上的床位救得了他。"她说,"我就当了他最值钱的一段。"\n\n"后来他救回来了,却忘了我。他管我叫阿姨。"'] }
 ];
@@ -357,7 +362,10 @@ DAYS[13].story = [
      审计页支持函数项(返回 null 即整页跳过),见 main.js runPages 的 resolve()。 */
   const p=DAYS[21] && DAYS[21].audit && DAYS[21].audit.pages;
   if(Array.isArray(p)){
-    const at=Math.max(0,p.length-1);            // 插在最后的「笔,就在那里。」选择之前
+    /* 必须真正插在「笔,就在那里。」选项页之前——按 length-1 定位会撞上
+       追加在末尾的红章页,回响就跑到抉择后面去了。 */
+    let at=p.findIndex(pg=>pg && pg.choices);
+    if(at<0) at=Math.max(0,p.length-1);
     p.splice(at,0,
       (G)=>G.flags.asked_he ? { who:'he', text:[
         '何主管翻评估表的手,停了一下。',
@@ -743,7 +751,7 @@ appendStoryAfter(19, (G)=>!(G.flags.union_helped)?null:{ text:[
     '"今晚不走线索。"她的声音比平时低,"你来一趟隧道口。就……找个人,坐一会儿。"' ] },
   { scene:'metro', text:['隧道口的风比城里凉。她坐在路基上,兜帽摘了。左边鬓角那块疤,在灯下看得很清楚。'] },
   { who:'guardian', text:[
-    '"这是它。"她指了指疤,"最后一次大清算。评级 S 降 D,流程走完用了四个小时。"',
+    '"这是它。"她指了指疤,"最后一次大清算。评级 A 降 D,流程走完用了四个小时。"',
     '"第四个小时零十分钟,我走进了这个地铁站。之后的事你知道了——017 接了我的位置。"',
     '"我守在这儿,不是守望谁。"她说,"是守我的旧工位。"' ] },
   { text:['她把兜帽重新戴上之前,又说了一句,像对你说,也像对隧道说:',
@@ -758,7 +766,7 @@ appendStoryAfter(19, (G)=>!(G.flags.union_helped)?null:{ text:[
     return '回去的地铁上,你一直在看站名。九号线,倒数第三站,下一站没有名字。\n\n你以前做梦的时候,好像路过。'; }
 ]});
 
-/* ================= 弧一补 · D24 档案室:她的 S 级工单史 =================
+/* ================= 弧一补 · D24 档案室:她的金牌工单史 =================
    走过档案线的玩家,亲手翻到那页空白——她亲口说过的话,变成纸面证据。 */
 appendStoryAfter(24, (G)=>!(G.flags.clue_file&&(G.flags.union_helped||G.flags.scar_story))?null:{ text:[
   '档案架的最上层,有一份被抽走一半的工单史。\n\n编号 S-016。连续十四周,零异常,语义指纹全片区第一。',

@@ -122,6 +122,13 @@ window.ICONS = (function(){
         <path d="M6 13 V19.5 H18 V13"/>
         <rect x="13.5" y="14.5" width="3" height="5"/>
         <rect x="8" y="14.5" width="4" height="3"/>`),
+      /* 窗边坐坐:咖啡杯 + 窗棂(便利店歇脚,不打零工) */
+      store: w(`
+        <line x1="12" y1="3" x2="12" y2="21" stroke-width="1" opacity="0.55"/>
+        <path d="M14 8.5 H19 V14.5 A2.5 2.5 0 0 1 16.5 17 H15.5 A2.5 2.5 0 0 1 14 14.5 Z"/>
+        <path d="M19 9.5 H20.2 A1.6 1.6 0 0 1 20.2 12.8 H19"/>
+        <line x1="14" y1="19.2" x2="20" y2="19.2"/>
+        <path d="M4 5 H10 M4 9 H10 M4 13 H10 M4 17 H8" stroke-dasharray="0" opacity="0.55"/>`),
       /* 电台:收音机 + 频率刻度 + 天线 */
       radio: w(`
         <rect x="4" y="10" width="16" height="9.5" rx="1.6"/>
