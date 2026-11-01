@@ -173,12 +173,22 @@ const AUDIO = (() => {
   function toggleMute(){
     muted = !muted;
     const c = ctx;
-    if (ambGain) ambGain.gain.value = muted ? 0 : .028;
-    if (c && texGain){
-      try {
-        const t = TEX[curTex];
-        texGain.gain.value = muted ? 0 : (t ? t.vol : 0);
-      } catch(e) {}
+    if (muted){
+      if (ambGain) ambGain.gain.value = 0;
+      if (c && texGain){ try { texGain.gain.value = 0; } catch(e) {} }
+    } else {
+      /* 静音期间每次场景切换都把参数压进了 __pendingAmb——解静音要先回放
+         "当前场景"的参数;否则恢复的是静音前那一场的频率/纹理,音量还被 .028 拍平,
+         白天的底鸣会被直接带进梦境。 */
+      const pending = window.__pendingAmb; window.__pendingAmb = null;
+      if (pending){ setAmbient.apply(null, pending); return; }
+      if (ambGain) ambGain.gain.value = .028;
+      if (c && texGain){
+        try {
+          const t = TEX[curTex];
+          texGain.gain.value = t ? t.vol : 0;
+        } catch(e) {}
+      }
     }
     return muted;
   }

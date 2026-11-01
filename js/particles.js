@@ -20,6 +20,7 @@ const FX = (() => {
   };
 
   function resize(){
+    _lastW=window.innerWidth; _lastH=window.innerHeight;
     DPR = Math.min(window.devicePixelRatio || 1, (window.innerWidth < 700 ? 1.5 : 2));
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W * DPR; cv.height = H * DPR;
@@ -31,7 +32,16 @@ const FX = (() => {
   function bodyBg(){
     return mode === 'day' ? '#F7F3EC' : '#0B0E1A';
   }
-  window.addEventListener('resize', resize);
+  /* 移动端地址栏收起/展开每帧都算 resize,每次都 seed() 重铺——粒子群整体瞬移。
+     150ms 防抖 + 尺寸变化 <64px 不重铺(地址栏伸缩恰好在这个量级)。 */
+  let _rszT=null, _lastW=0, _lastH=0;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(_rszT);
+    _rszT=setTimeout(()=>{
+      if(Math.abs(window.innerWidth-_lastW)<8 && Math.abs(window.innerHeight-_lastH)<64) return;
+      resize();
+    },150);
+  });
 
   function seed(){
     parts = [];

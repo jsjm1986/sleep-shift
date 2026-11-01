@@ -118,12 +118,13 @@ let G=null;
    玩家看到的是纯白屏,连"新的睡班"都点不到(实测已复现)。
    读写全部改走这两个兜底函数:写入失败只降级为"本次不存",绝不阻断游玩。 */
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
-function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+/* stringify 也要进 try:环形引用/BigInt 会在序列化时抛,裸 JSON.stringify 会把写入路径炸成软锁。 */
+function lsSet(k,v){ try{ localStorage.setItem(k, typeof v==='string'?v:JSON.stringify(v)); return true; }catch(e){ return false; } }
 let saveWarned=false;
 function warnNoSave(){ if(saveWarned) return; saveWarned=true; toast('这个环境不允许存档,进度只保留到关掉页面。'); }
 
 function saveMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'meta')||'{}'); }catch(e){ return {}; } }
-function setMeta(m){ lsSet(SAVE_PREFIX+'meta', JSON.stringify(m)); }
+function setMeta(m){ lsSet(SAVE_PREFIX+'meta', m); }
 /* 档案跟随(v2.13):你上一份档案没有被销毁——结案批注被钉进了新档案的首页。
    独立键,不在存档槽体系里:清存档不清档案柜,因为档案柜不归你管。
    首周目永远不读它(flags.ng 门禁)——每个人都是从干净的第一份档案开始的。 */
@@ -131,8 +132,9 @@ function pastMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'past')||'null'); 
 function writePast(endingId){
   const p=pastMeta()||{runs:0};
   /* 卷宗号按"完成的一局"计,不按"看过几遍结局页"计——
-     自动档停在 D30 白天,重进再睡再选会让同一局 +N 个卷宗。 */
-  if(!G.flags.runsCounted){ G.flags.runsCounted=1; p.runs=(p.runs||0)+1; }
+     自动档停在 D30 白天,重进再睡再选会让同一局 +N 个卷宗。
+     去重要能活过刷新:局号写进档案柜本身,而不是存在当局 flags 里。 */
+  if(p.countedRun!==G.flags.runId){ p.countedRun=G.flags.runId; p.runs=(p.runs||0)+1; }
   p.route=Object.assign({}, G.route||{ren:0,zhen:0,zhi:0});
   p.verdict=domAxis(2);
   /* 关系温度一并归档:他们会登记你认识谁——都是数据质量的一部分。 */
@@ -141,17 +143,17 @@ function writePast(endingId){
   p.pawns=G.flags.pawn_count||0;
   p.redeems=G.flags.redeem_count||0;
   p.ending=endingId||null;
-  lsSet(SAVE_PREFIX+'past', JSON.stringify(p));
+  lsSet(SAVE_PREFIX+'past', p);
   return p;
 }
 function hasAuto(){ return !!loadSlot('auto'); }
 let _saveHinted=false;
 function autoSave(){
-  if(!lsSet(SAVE_PREFIX+'auto', JSON.stringify(G))){ warnNoSave(); return; }
+  if(!lsSet(SAVE_PREFIX+'auto', G)){ warnNoSave(); return; }
   /* 第一次落账给一次可见回执:此前存档是静默的,玩家直到刷新才知道有自动档。 */
   if(!_saveHinted){ _saveHinted=true; toast('进度已自动归档。中途离开,可从标题页继续。'); }
 }
-function saveSlot(n){ const ok=lsSet(SAVE_PREFIX+'slot'+n, JSON.stringify(G)); if(!ok) warnNoSave(); return ok; }
+function saveSlot(n){ const ok=lsSet(SAVE_PREFIX+'slot'+n, G); if(!ok) warnNoSave(); return ok; }
 /* 只读原始字符串,用于区分"空槽"与"槽里有东西但读不出来" */
 function slotRaw(n){ return lsGet(n==='auto' ? SAVE_PREFIX+'auto' : SAVE_PREFIX+'slot'+n); }
 /* 读档统一在这里"读 + 归一化":损坏(JSON 截断 / 手工改过 / 写入被中断)
@@ -164,6 +166,9 @@ function loadSlot(n){
     const raw=lsGet(n==='auto' ? SAVE_PREFIX+'auto' : SAVE_PREFIX+'slot'+n);
     if(!raw) return null;
     const s=normalizeSave(JSON.parse(raw));
+    /* 防跳档:dayReady===day 但 morningDay<day 是正常存档造不出来的组合——
+       它会绕过清晨块(feed 分期/gym 重置/lifeDone 复位全丢)直接进白天。 */
+    if(s && s.dayReady===s.day && s.morningDay<s.day) s.morningDay=s.day;
     if(s && s.morningDay==null){
       s.morningDay=s.day;
       s.dayReady=(n!=='auto' || s.lifeDone || s.contract) ? s.day : 0;
@@ -176,7 +181,10 @@ function loadSlot(n){
 function normalizeSave(s){
   if(!s || typeof s!=='object' || Array.isArray(s)) return null;
   const num=(v,d)=>(typeof v==='number' && isFinite(v)) ? v : d;
-  s.day=num(s.day,1); if(s.day<1) s.day=1; if(s.day>30) s.day=30;   // DAYS 只到 30,越界会得到空的一天
+  s.day=Math.floor(num(s.day,1)); if(s.day<1) s.day=1; if(s.day>30) s.day=30;   // DAYS 只到 30,越界会得到空的一天;小数天数会渲染出"周undefined"
+  /* 幽灵档防线:{"day":30} 这种空壳档不该生成一局"从没发生过"的第 30 天。
+     必须在字段回填之前判——回填后 flags/history 全被补成合法空值,永远放行。 */
+  if(s.day>1 && (!s.flags || !Array.isArray(s.history))) return null;
   s.coins=num(s.coins,380);
   s.mem=num(s.mem,92);
   s.mood=num(s.mood,70);
@@ -184,7 +192,7 @@ function normalizeSave(s){
   /* 只补类型不补区间不够:手改存档或被别的版本写过的存档可能带 mem:9999 / mood:-40,
      会让 nightQuality() 直接判"优"、applyMood() 算出负透明度,HUD 显示 9999%。
      这里统一夹回设计区间。 */
-  s.coins=Math.max(0, s.coins);
+  /* 负数余额是合法状态(大清算净扣会扣到负数)——夹到 0 等于每次刷新免债。 */
   s.mem=clamp(s.mem,0,100);
   s.mood=clamp(s.mood,0,100);
   s.stars=clamp(s.stars,0,5);
@@ -229,6 +237,12 @@ function normalizeSave(s){
       s.contractSnap=null;
   }
   MEMORIES.forEach(m=>{ if(!['full','tainted','pawned'].includes(s.mems[m.id])) s.mems[m.id]=m.pre?'pawned':'full'; });
+  /* chatSeen 缺失或非对象 → chatPage 里 seen[key]=1 会给原始值赋属性,严格模式直接 TypeError,
+     且抛在 lifeDone 落账之后——行动被吞、页面没播。 */
+  if(!s.chatSeen||typeof s.chatSeen!=='object'||Array.isArray(s.chatSeen)) s.chatSeen={};
+  /* 瞬态字段不该带着旧值跨档:loot/pendingSettle 是"今夜还没结"的暂存,
+     读档进来时应是干净的白天。 */
+  s.loot=null; s.pendingSettle=null; s.lastLog=null;
   return s;
 }
 
@@ -240,7 +254,7 @@ function newGame(){
     day:1, morningDay:0, dayReady:0, coins:380 + (ng?500:0), mem:92, mood:70, mems,
     /* 试用期从 C 级起步:评级要有爬升过程,不能开局就 B 级、一周后满星。 */
     stars:1, affix:null,
-    flags:{}, seen:[],
+    flags:{runId:'r'+Date.now()+Math.random().toString(36).slice(2,6)}, seen:[], chatSeen:{},
     route:{ren:0,zhen:0,zhi:0},
     contract:null, lifeDone:false,
     weekEarn:0, loot:null, lastLog:null, glitch:0,
@@ -264,6 +278,7 @@ function setGlitch(level){
   app.classList.remove('gl-on');
   if(level<=0) return;
   glitchTimer=setInterval(()=>{
+    if(document.hidden) return;   // 后台标签页不出声——锁屏时"哔"一声毛刺音尤其突兀
     if(Math.random() < 0.18 + level*0.09){
       app.classList.add('gl-on');
       if(Math.random()<0.25) AUDIO.SFX.glitch();
@@ -342,10 +357,13 @@ function setScene(key){
   if(key && window.AUDIO && AUDIO.setAmbient){
     const am=AMB_MAP[key]||[110,164.8,.028,'hum'];
     /* 情绪调色:情绪低,世界的底鸣跟着暗下去(音量衰减);情绪高,亮一点。 */
-    const tint=(window.G&&G&&G.mood!=null)?(G.mood<=30?0.75:(G.mood>=70?1.1:1)):1;
+    /* G 是模块级 let,从不挂 window——旧检查恒为假,情绪低气压功能从没响过。 */
+    const tint=(G&&G.mood!=null)?(G.mood<=30?0.75:(G.mood>=70?1.1:1)):1;
     AUDIO.setAmbient(am[0], am[1], +(am[2]*tint).toFixed(4), am[3]||'hum');
   }
-  if(!art){ s.classList.remove('on'); s.innerHTML=''; return; }
+  /* 场景撤销时环境层也要回底:否则退出到标题页,背景还挂着面馆蒸汽/地铁轨——
+     声画脱节,要等下一次 setScene 才会被盖掉。 */
+  if(!art){ s.classList.remove('on'); s.innerHTML=''; if(window.AUDIO&&AUDIO.setAmbient) AUDIO.setAmbient(84,126,.02,'room'); return; }
   s.className='on';
   s.innerHTML=art+`<div class="sceneVignette"></div><div class="sceneGrain"></div>`;
   /* 场景标签戳:进入地点时闪现红章(1.6s 自动消失) */
@@ -501,10 +519,10 @@ function runPages(pages, done, opts={}){
     if(typeof p==='object' && p.scene) setScene(p.scene);
     setSpeaker(p);
     /* 页面级 fx:账单页写"扣了 ₡15",账就必须真扣——此前 render() 从不调用 p.fx,
-       数据层唯一的页面 fx(邻里打包费)是纯哑弹。once 标记防重放重扣。 */
-    if(typeof p==='object' && p && typeof p.fx==='function' && !p.__fxDone){
-      p.__fxDone=1; try{ p.fx(G); }catch(e){}
-    }
+       数据层唯一的页面 fx(邻里打包费)是纯哑弹。
+       去重交给 wrapSeqFx 的 sqfx_ 旗标——别用对象标记:DAYS 数据全会话共享,
+       标记会跨 newGame 存活,NG+ 之后整页 fx 永不执行。 */
+    if(typeof p==='object' && p && typeof p.fx==='function'){ try{ p.fx(G); }catch(e){} }
     const text = typeof p==='string' ? p : (p.text||[]).join('\n\n');
     pendingChoices = (typeof p!=='string' && p.choices) ? p.choices : null;
     type(text);
@@ -523,6 +541,9 @@ function runPages(pages, done, opts={}){
   /* 纯文本页没有任何可聚焦元素,键盘玩家在第一个页序列即被卡死——
      Enter/Space 等同翻页;焦点在按钮上时让浏览器原生点击生效,不重复触发。 */
   const keyTap=e=>{
+    /* 宿主被外力拆除(而非自然播完)时,这个 document 级监听还活着——
+       继续推进死链会在 finish() 读已置空的 G。自摘除。 */
+    if(!mount.isConnected){ token.dead=true; document.removeEventListener('keydown',keyTap); return; }
     if(finished||token.dead) return;   // 死序列的 keyTap 不能吞掉别屏的 Enter/Space 默认行为
     if((e.key!=='Enter'&&e.key!==' ')||e.repeat) return;
     if(e.target.closest&&e.target.closest('button,[href],input,select,textarea,[data-pawn],[data-redeem],[role="button"],[tabindex]')) return;
@@ -556,9 +577,11 @@ function showTitle(){
     }
     _vn.classList.remove('on'); _vn.innerHTML='';
   }
-  /* 残余覆盖层清扫:梦境弹幕/body 级反转卡/章节卡在半途回标题时会悬尸。 */
+  /* 残余覆盖层清扫:梦境弹幕/body 级反转卡/章节卡在半途回标题时会悬尸。
+     先立 __dead 再拆:它们的 close() 里排着 0.8-1s 后的 done() 回调,
+     只删 DOM 清不掉计时器——死链会在标题页上重开序列(实测可复现的"流程复活")。 */
   const _dm=document.getElementById('danmaku'); if(_dm) _dm.innerHTML='';
-  document.querySelectorAll('.twist,.chapterCard,.locStamp').forEach(e=>e.remove());
+  document.querySelectorAll('.twist,.chapterCard,.locStamp').forEach(e=>{ e.__dead=1; e.remove(); });
   app.classList.remove('dimmed'); app.inert=false;
   nightLock=false; dayClosed=-1;
   FX.setMode('day');
@@ -628,9 +651,19 @@ function showChapterCard(done){
   const [num,title]=CHAPTERS[G.day]||['',''];
   const el=h('div','chapterCard',`<div class="cnum">${num}</div><div class="ctitle">${title}</div><div class="cline"></div>`);
   document.body.appendChild(el);
+  /* 覆盖期间锁住底下那屏:卡片不是 .modal,Tab 能穿到下层按钮,
+     黑屏下按 Enter 能把"回到标题"在卡片背后激活。 */
+  app.inert=true;
   AUDIO.SFX.drone(); AUDIO.SFX.clock47 && AUDIO.SFX.clock47();
   let closed=false;
-  const close=()=>{ if(closed) return; closed=true; el.classList.add('out'); setTimeout(()=>{ el.remove(); done&&done(); }, 800); };
+  const close=()=>{
+    if(closed) return; closed=true;
+    app.inert=false;
+    el.classList.add('out');
+    /* 卡片可能已被 showTitle 清扫:timeout 里排着的 done 属"死链复活",
+       会在标题页上重开序列。isConnected 是墓志铭。 */
+    setTimeout(()=>{ el.remove(); if(el.__dead||!done) return; done(); }, 800);
+  };
   el.addEventListener('click',close);
   setTimeout(close, 2100);
 }
@@ -673,8 +706,10 @@ function showMorning(){
   const leadId=(window.DAY_LEAD&&G.flags.dayLead)?G.flags.dayLead:null;
   const lead=leadId?window.DAY_LEAD.text[leadId]:null;
   const leadName=leadId?LIFE_NAME(leadId):null;
-  if(leadId) G.flags.dayLead=0;
+  /* 存档要在清旗之前:此刻落账=重放的清晨连 lead/vitals 一起完整重演;
+     在两个清旗之间落账=lead 丢了 vitals 却重播,半新半旧最别扭。 */
   autoSave();
+  if(leadId) G.flags.dayLead=0;
   app.innerHTML=hudHTML();
   const panel=h('div','panel fadeIn stagger');
   if(lead){
@@ -824,6 +859,9 @@ function afterMorning(){
   if(D.storyAfter) seq.push(...D.storyAfter);
   if(D.audit) seq.push({__audit:true});
   wrapSeqFx(seq, G.day);
+  /* 序列构建本身已有副作用(memThresholdPages 的 th25/mood-10、ngSeen)——
+     存档点在 showMorning 更早处,此刻补一次,这些旗标才能活过刷新。 */
+  try{ autoSave(); }catch(e){}
   runSeq(seq);
 }
 /* 清晨剧情序列的副作用去重:自动存档在序列开始前落账,中途刷新会重放整段——
@@ -831,19 +869,40 @@ function afterMorning(){
    页照播(叙事不丢),副作用只发一次。 */
 function wrapSeqFx(seq, day){
   seq.forEach((it,idx)=>{
+    /* 函数项整页跳过也要幂等:函数体里的副作用(xm++/zhen++/mood+)与返回页内容
+       绑在同一函数里,无法只留页不刷副作用——重放返回 null 整页跳过。
+       返回页里的 choices 一并包装。 */
+    if(typeof it==='function'){
+      const k='sqfn_'+day+'_'+idx, orig=it.__sqOrig||it;
+      const w=(G)=>{
+        if(G.flags[k]) return null;
+        G.flags[k]=1; try{autoSave();}catch(e){}   // 旗标必须落盘——否则刷新重放时存档里没有它,去重失效
+        const r=orig(G);
+        if(r&&typeof r==='object'&&Array.isArray(r.choices)) r.choices.forEach((c,j)=>{
+          if(c&&typeof c.fx==='function'){
+            const k2='sqfx_'+day+'_'+idx+'_'+j, cOrig=c.fx.__sqOrig||c.fx;
+            const cw=(G)=>{ if(G.flags[k2])return; G.flags[k2]=1; try{autoSave();}catch(e){} return cOrig(G); };
+            cw.__sqOrig=cOrig; c.fx=cw;
+          }
+        });
+        return r;
+      };
+      w.__sqOrig=orig; seq[idx]=w;
+      return;
+    }
     if(!it||typeof it!=='object') return;
     /* 必须锚回原函数再包:DAYS 数据对象是全会话共享的,第二局同一天会二次包装——
        外层先落旗、内层见旗跳过,真 fx 被永久吞掉(选项照样"选了没下文")。
        __sqOrig 保证多层包装时调用的永远是最初那一个。 */
     if(typeof it.fx==='function'){
       const k='sqfx_'+day+'_'+idx, orig=it.fx.__sqOrig||it.fx;
-      const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+      const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; try{autoSave();}catch(e){} return orig(G); };
       w.__sqOrig=orig; it.fx=w;
     }
     if(Array.isArray(it.choices)) it.choices.forEach((c,j)=>{
       if(c&&typeof c.fx==='function'){
         const k='sqfx_'+day+'_'+idx+'_'+j, orig=c.fx.__sqOrig||c.fx;
-        const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+        const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; try{autoSave();}catch(e){} return orig(G); };
         w.__sqOrig=orig; c.fx=w;
       }
     });
@@ -868,7 +927,9 @@ function runSeq(seq){
     showAudit(a, ()=>{
       const rest=(a.pages||[]).slice();
       wrapSeqFx(rest, G.day+'_a');   // 清算后页同样可能被读档重放
-      if(a.twist) showTwist(a.twist, ()=>runSeq(rest));
+      /* 日间反转回调有 FX.setMode('day'),清算路径漏了——T1 之后的选择页
+         会一直停在核心夜粒子+黑夜配色下,直到下一天 startDay 才恢复。 */
+      if(a.twist) showTwist(a.twist, ()=>{ FX.setMode('day'); runSeq(rest); });
       else runSeq(rest);
     });
     return;
@@ -879,7 +940,7 @@ function runSeq(seq){
 function memThresholdPages(){
   const out=[];
   if(G.mem<25 && !G.flags.th25){
-    G.flags.th25=1; G.mood=clamp(G.mood-10,0,100);
+    G.flags.th25=1; G.flags.th25day=G.day; G.mood=clamp(G.mood-10,0,100);
     /* 机制只停一晚,文案就别卖一周——不然第二天照常派单时,承诺就成了谎言。 */
     out.push('今天,医生给你开了一天的"静养"。\n\n公司批得飞快。\n\n快得像等这一天,已经很久了。');
   } else if(G.mem<50 && !G.flags.th50){
@@ -946,7 +1007,9 @@ function startDay(){
   const D=DAYS[G.day]||{};
   // 注意:生活行动次数(lifeDone)在 showMorning() 里每日重置,不能放在这里——
   // startDay 也会在"做完一次生活行动后"被调用,那样会让每日 1 次的限制失效。
-  const resting = G.flags.th25 && !G.flags.th25done && G.day<=30;
+  /* 门槛按"触发的当天"判定,不是一次性旗:th25done 在首次渲染即被持久化,
+     刷新一下就能绕过全游戏唯一的强制静养日。 */
+  const resting = G.flags.th25day===G.day && G.day<=30;
   if(resting) G.flags.th25done=1;
   if(!D.offers) D.offers=['biaozhu','render'];
 
@@ -1122,7 +1185,7 @@ function startDay(){
   app.appendChild(cwrap);
 
   // ---- 生活行动 ----
-  app.appendChild(h('h',`h`, G.lifeDone?'生活行动(今日已用)':'生活行动(1/1)'));
+  app.appendChild(h('div',`h`, G.lifeDone?'生活行动(今日已用)':'生活行动(1/1)'));
   if(!resting && !G.lifeDone && storyHits.length){
     const names=storyHits.map(lid=>LIFE_NAME(lid).split(' · ')[0]).join(' / ');
     app.appendChild(h('div','storyHint',`<b>今天有人等你</b>${names}。这一步会推着故事往前走。`));
@@ -1971,16 +2034,19 @@ function applyContractEconomy(advanceWork){
      在结算(而非签约)时点立期——改签没入睡不耗档期。 */
   if(c.id==='finance') G.flags.finance_cd=G.day+3;
   if(c.id==='black')   G.flags.black_cd=G.day+4;
+  /* 风险加成取"入睡时"的情绪——同一函数里质量因子刻意取睡前值(见 q),
+     风险掷签若取睡后值,卡面价与实掷口径就不一致(情绪 50 签金融,
+     自身损耗把人砸到 39,实际按 28% 掷而卡面写 18%)。 */
+  const moodAtSleep=G.mood;
   G.mood=clamp(G.mood+moodDelta-3,0,100);
   if(memCost) G.mem=clamp(G.mem-memCost,0,100);
   if(c.id==='biaozhu') G.flags.biaozhu_done=1;
   if(c.id==='render') G.flags.render_done=1;
   applyMood();
 
-  risk += (G.mood<40?10:0);
+  risk += (moodAtSleep<40?10:0);
   const hit=Math.random()*100<risk;
   const tainted = hit ? taintFromNight() : null;
-  const week=Math.min(3,Math.max(1,Math.ceil(G.day/7)));
   /* 工单按"该合同第几次出工"推进,而不是全局日历。
      原实现让 D15 才首次接 finance 的玩家直接读 W3,前面的 W1/W2 正常流程永远看不到;
      同一周反复接同一单还会逐字重播同一组工单。 */
@@ -2015,8 +2081,10 @@ function settleContract(){
       taintedList().slice(0,2).forEach(id=>{
         nodes.push({type:'purify',name:'污染体 · '+memName(id),tainted:id});
       });
-      /* 已读工单+命中污染的夜,白天那一步会整条丢页:注入到意外序列开头。 */
-      if(lead) nodes.unshift({type:'pages',pages:[lead.text.join('\n\n')]});
+      /* 已读工单+命中污染的夜,白天那一步会整条丢页:注入到意外序列开头。
+         只在蒙太奇被跳过(workSeen)时注入——蒙太奇正常播放时 lead 已经在工单页里,
+         再 unshift 一次就是同一段批注播两遍。 */
+      if(lead && workSeen) nodes.unshift({type:'pages',pages:[lead.text.join('\n\n')]});
       if(Math.random()<0.5) nodes.push({type:'echo', id:pickEchoId()});
       if(Math.random()<0.35) nodes.push({type:'chase', n:3, name:'逃逸污染体'});
       if(Math.random()<0.6) nodes.push({type:'collect', n:2+Math.floor(Math.random()*2)});
@@ -2211,10 +2279,14 @@ function startDream(spec){
   G.loot={coins:0,mem:0,frag:0,redeem:[]};
 
   const nodes=(spec.nodes||[]).slice();
-  // 自动插入待赎回的污染记忆(最多2;终局夜除外)
-  if(!spec.ending){
+  /* 自动注入一律走 closing 哨兵:push 到末尾会把"净化污染体·妹妹的脸"排到
+     "你醒来时,窗外的晴天刚刚升起"之后——收尾契约被玩法节点穿帮。
+     spec.taint===false 的声明接上线:写明了"此夜不生污染戏"的强制夜,
+     不再往剧本里塞净化节点(普通夜的净化通道不受影响)。 */
+  const insertNode=n=>{ const ci=nodes.findIndex(x=>x&&x.closing); if(ci>=0) nodes.splice(ci,0,n); else nodes.push(n); };
+  if(!spec.ending && spec.taint!==false){
     taintedList().slice(0,2).forEach(id=>{
-      if(!nodes.some(n=>n.tainted===id)) nodes.push({type:'purify',name:'污染体 · '+memName(id),tainted:id});
+      if(!nodes.some(n=>n.tainted===id)) insertNode({type:'purify',name:'污染体 · '+memName(id),tainted:id});
     });
   }
   /* 白天那一步,今夜有手感:行动不只改数值,也改夜里的操作本身——
@@ -2227,7 +2299,7 @@ function startDream(spec){
   if(!spec.ending && !forcedNight && dl){
     if(dl==='park') nodes.forEach(n=>{ if(n&&n.type==='purify') n.calm=1; });
     if(dl==='bookstore') nodes.forEach(n=>{ if(n&&n.type==='collect'&&n.n>2) n.n--; });
-    if(dl==='radio'&&!nodes.some(n=>n&&n.type==='echo')) nodes.push({type:'echo',id:'lullaby'});
+    if(dl==='radio'&&!nodes.some(n=>n&&n.type==='echo')) insertNode({type:'echo',id:'lullaby'});
   }
 
   let danTimer=null;
@@ -2239,6 +2311,9 @@ function startDream(spec){
        否则 #danmaku 是 body 上的常驻层,弹幕会一直飘在标题页上面且永不停止。 */
     if(!G || !G.flags.danmaku) return;
     if(!stage.isConnected) return;
+    /* 反转覆盖层(.twist z-70)期间弹幕仍在后台堆积,揭晓瞬间整批涌出——
+       最不该被"这集我看过"打断的一拍。覆盖期间暂停生产,不丢弹幕节奏。 */
+    if(document.querySelector('.twist')){ danTimer=setTimeout(spawnDM,1500); return; }
     const dm=h('div','dm',pickDanmaku());
     dm.style.top=(8+Math.random()*70)+'%';
     dm.style.animationDuration=(7+Math.random()*7)+'s';
@@ -2266,6 +2341,11 @@ function startDream(spec){
     const worked=!!G.contract;
     const pe=G.pendingSettle; G.pendingSettle=null;
     if(pe) lines.push(settleLine(pe.earn, pe.af, pe.c && pe.c.id, pe.q, pe.gross, pe.hs));
+    /* 强制夜的污染命中此前完全静默:记忆掉了 3-6%、一段记忆被污染,
+       玩家只看到结算行。普通 hit 夜有一页明示,这里补一行同款告知。 */
+    if(pe&&pe.hit) lines.push(pe.tainted
+      ? `有什么东西,正啃在你的「${memName(pe.tainted)}」上。`
+      : '有什么东西,在你的云背里游荡。');
     lines.push('云背合拢。你浮了上来。');
     if(L.frag) lines.push(`记忆碎片 ×${L.frag} → <b>+₡${L.coins}</b>`);
     /* 面娘的蛋:吃饱的打捞更稳。与 nightLeadPage 的「矿机进食状况良好」互为表里——
@@ -2277,7 +2357,12 @@ function startDream(spec){
     if(L.mem) lines.push(`净化安抚 → <b>记忆完整性 +${L.mem}%</b>`);
     if(L.redeem.length) lines.push(`赎回:「${L.redeem.map(memName).join('」「')}」`);
     G.coins+=L.coins; G.mem=clamp(G.mem+L.mem,0,100);
-    G.mood=clamp(G.mood-2,0,100); applyMood();
+    /* 强制剧情夜没签约:不给整夜安静夜恢复,但也不该倒贴 mood-2——
+       剧情夜有内容不白睡,给安静夜底子的一半(记忆 +1 / 情绪 +2,不发补贴)。 */
+    if(worked){ G.mood=clamp(G.mood-2,0,100); }
+    else { G.mem=clamp(G.mem+1,0,100); G.mood=clamp(G.mood+2,0,100); }
+    applyMood();
+    G.loot=null;   // 结完即弃:死数据不留进下一份存档,也不给改档注入留门
     lines.push(worked ? `【 今晚你的脑子算了什么 】\n\n${nightLog(true)}` : `【 今晚,池子没有叫你 】\n\n${nightLog(false)}`);
     app.innerHTML=hudHTML();
     const p=h('div','panel fadeIn stagger'); lines.forEach(l=>p.appendChild(h('p','t',l)));
@@ -2301,7 +2386,8 @@ function startDream(spec){
     else if(n.type==='collect'){ doCollect(stage, n, ()=>next(i+1)); }
     else if(n.type==='chase'){ doChase(stage, n, ()=>next(i+1)); }
     else if(n.type==='twist'){
-      showTwist(n.id, ()=>next(i+1));
+      /* 反转把粒子切到 core 后没人恢复:它之后的节点与结算都跑错了主题。 */
+      showTwist(n.id, ()=>{ FX.setMode('night', spec.theme||'sea'); next(i+1); });
     }
     else next(i+1);
   }
@@ -2329,7 +2415,9 @@ function doPurify(stage, node, done){
      原实现用 timeout-(now-start):切后台/锁屏/来电时请求照常倒计时,
      玩家回来只看见一行"它挣脱了"。这是唯一一个会因为系统行为直接判负的关卡,不能这么算。 */
   let budget=timeout, lastT=start;
-  function onVis(){ if(!document.hidden) lastT=performance.now(); }
+  /* 桌面按住中切窗:pointerup 落不进窗口,holding 会残留到下次移动才自纠——
+     回来时进度在没按着的情况下继续涨。切窗即视为松手。 */
+  function onVis(){ if(document.hidden){ holding=false; hud.classList.remove('holding'); } else lastT=performance.now(); }
   document.addEventListener('visibilitychange', onVis);
   const blot=h('div','blot');
   blot.dataset.name=node.name;
@@ -2383,7 +2471,10 @@ function doPurify(stage, node, done){
   function hit(e){
     const r=stage.getBoundingClientRect();
     const x=(e.clientX-r.left)/r.width*100, y=(e.clientY-r.top)/r.height*100;
-    return Math.hypot(x-P.x, (y-P.y)*0.9) < 15;
+    /* 百分比半径在矮舞台上比贴图小:横屏 160px 高的舞台,15% 垂直向才 24px,
+       78px 贴图的边缘根本按不到。按贴图实际像素折算命中半径。 */
+    const R=Math.max(15, (blot.offsetWidth||110)/2/r.height*100);
+    return Math.hypot(x-P.x, (y-P.y)*0.9) < R;
   }
   function onDown(e){ if(hit(e)){ holding=true; hud.classList.add('holding'); AUDIO.SFX.soft(); } }
   function onMove(e){ if(holding && !hit(e)){ holding=false; hud.classList.remove('holding'); } }
@@ -2403,8 +2494,8 @@ function doPurify(stage, node, done){
       AUDIO.SFX.purge && Math.random()<0.06 && AUDIO.SFX.purge();
       /* 最后 5 秒:心跳盖过一切提示——身体先于警报知道。 */
       if(budget<5000 && now-lastHB>820){ lastHB=now; AUDIO.SFX.heartbeat && AUDIO.SFX.heartbeat(); }
+      /* escapesLeft 恒为 1:第一次逃逸消耗后,第二判定永假——死分支删除。 */
       if(progress>0.33 && escapesLeft>0){ escapesLeft--; jump(); }
-      if(progress>0.72 && escapesLeft>0){ escapesLeft--; jump(); }
     }
     const sc=1-progress*0.7;
     blot.style.transform=`scale(${sc})`;
@@ -2490,7 +2581,8 @@ function doEcho(stage, node, done){
 
 /* --- 收集 --- */
 function doCollect(stage, node, done){
-  let left=node.n||3;
+  /* n:-1 之类负值是真值,会让 frag 产出 0 个、done() 永不调用——夜晚软锁。 */
+  let left=Math.max(1,(node.n|0)||3);
   const tip=h('div','dreamTip','触碰光点 · 剩余 '+left+' 个');
   stage.appendChild(tip);
   for(let k=0;k<left;k++){
@@ -2566,10 +2658,13 @@ function showTwist(id, done){
      mood −10/−15 不是幂等写入,每重放一次就多扣一次。 */
   if(G.seen.includes(id)){ done&&done(); return; }
   G.seen.push(id);
+  try{autoSave();}catch(e){}   // seen 不落盘的话,刷新重播会再扣一次 mood/重跑 fx
   FX.setMode('night','core');
   const el=h('div','twist');
   el.innerHTML=`<div class="tt gl-text" data-t="${T.title}">${T.title}</div><div class="tl"></div><button class="go">继 续</button>`;
   document.body.appendChild(el);
+  /* 反转不是 .modal,Tab 能穿到下面的按钮——黑屏下按 Enter 会激活看不见的"天亮了"。 */
+  app.inert=true;
   AUDIO.SFX.drone();
 
   const tl=el.querySelector('.tl'), go=el.querySelector('.go');
@@ -2635,8 +2730,10 @@ function showTwist(id, done){
        注意不能复用 finished:finish() 开头就把 finished 置真,末尾才调 close()。 */
     if(closed) return;
     closed=true;
+    app.inert=false;
     el.style.transition='opacity 1s'; el.style.opacity='0';
-    setTimeout(()=>{ el.remove(); done&&done(); }, 1000);
+    /* 覆盖层可能已被清扫(回标题):排队的 done 是死链复活,会在标题页重开流程。 */
+    setTimeout(()=>{ el.remove(); if(el.__dead||!done) return; done(); }, 1000);
   }
   go.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); advance(); });
   el.addEventListener('click',advance);
@@ -2732,6 +2829,7 @@ function showAudit(audit, done){
     G.mem=clamp(G.mem-wear,0,100);
     G.coins+=net; applyMood();
     G.flags['aud_'+G.day]=1;
+    try{autoSave();}catch(e){}   // 归档旗必须落盘:刷新重放在存档点之前,旗不在账=结算再执行一遍
   }
   /* 评级在清算时升降 —— 清算大厅本来就是评级的地方,此前却是唯一不评级的场合。
      没有这条,星级只有"接黑单 -1"和"云梯塔 +1"两个来源:
@@ -2869,14 +2967,25 @@ function showEndingChoice(){
   /* 未走之路:只提示"差一步"的结局,不剧透条件细节——多周目的钩子。
      规则:每条都要求"种子已种下"(相关 flag 已出现)但门槛未达标,最多亮一条。 */
   const nearMiss=[
-    [G.stars===5 && (G.route.zhi||0)>=3 && !G.flags.feed_path && G.mem<90,
-      '有一张卡没有亮起。它要求你的数据完整度达到 90——你忘掉的太多了。'],
-    [G.mem>=70 && G.mem<88 && (!!G.flags.return_sis||!!G.flags.union_helped),
+    /* 上楼:三条门禁(满星/zhi≥3/mem≥90)任何一条差一点都算差一步——
+       旧版只提示 mem,星与顺从是最不透明的两个条件。 */
+    [!G.flags.feed_path && !(G.stars===5&&G.mem>=90&&(G.route.zhi||0)>=3)
+       && (G.stars>=4 || G.mem>=80 || (G.route.zhi||0)>=2),
+      '有一张卡没有亮起。它要满星、九成新的数据、和对体制的顺从——你总有一样差了一步。'],
+    /* 守梦人:门禁是 return_sis AND union_helped——旧提示只说记忆,
+       缺旗的暗示要指出来。 */
+    [(!!G.flags.return_sis||!!G.flags.union_helped) && !(G.flags.return_sis&&G.flags.union_helped) && G.mem>=88,
+      '有一张卡没有亮起。她的记忆回来了,或者那扇门推开过——但守门人要两样都有。'],
+    [G.mem>=70 && G.mem<88 && (!!G.flags.return_sis&&!!G.flags.union_helped),
       '有一张卡没有亮起。它要求你记得更多——至少 88%。'],
     [(G.flags.mian_helped||G.flags.mian_deal) && G.route.ren<2,
       '有一张卡没有亮起。这一路,你把具体的人捞出来的次数,还不够多。'],
-    [(G.flags.xm||0)>=1 && !G.flags.teach_dream,
-      '有一张卡没有亮起。有人还在等你教她做梦。'],
+    /* 删掉死条:xm≥1 的玩家必然走到 teach_dream,这条永远不可能为真。
+       换成真差一步:见过她(xm≥1)但没攒够第二次相遇——xiaoman 结局要 xm≥2 且教过梦。
+       xm 恰为 1 且未教梦的路径只剩:D14 答完题后 D21 选"快跑"(不加 ren)且 D25 两个选项都给了教梦——
+       实际上 xm≥1→teach_dream 不可避,故无 hint 可指。 */
+    [(G.flags.pawn_count||0)>=3 && !G.flags.clue_pawn,
+      '有一张卡没有亮起。你卖掉过自己三次,却从没翻过那本总账。'],
     [!!G.flags.clue_pawn && (G.flags.pawn_count||0)<3,
       '有一张卡没有亮起。典当行只把柜台钥匙,交给卖掉过三次自己的人。'],
     [!G.flags.union_helped && !!G.flags.T4,
@@ -2890,7 +2999,8 @@ function showEnding(id){
   const E=ENDINGS[id];
   FX.setMode('night','core'); setGlitch(0);
   setScene(null);
-  if(E.ng) setMeta({ng:1});
+  /* 合并而不是覆盖:setMeta 整对象替换,将来加任何键都会被这一行抹掉。 */
+  if(E.ng){ const m=saveMeta(); m.ng=1; setMeta(m); }
   const lines=E.lines.concat(E.extra?E.extra(G):[]);
   app.innerHTML='';
   const wrap=h('div','ending');

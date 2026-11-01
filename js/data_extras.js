@@ -185,7 +185,8 @@ window.ENDINGS = {
     const out=[];
     /* "一百五十天"只属于多周目:首周目阿枣的"正"字是从你来了才开始画的,
        说成一百五十天就把重逢的好牌打成了穿越闹剧。 */
-    if(G.flags.zao>=3 && G.meta&&G.meta.ng) out.push('她的笔记本上,你的名字旁边,画了三个"正"字。\n\n一百五十天。她全记得。');
+    /* G.meta 从未被写入——多周目状态在 saveMeta().ng(G.flags.ng 在新局由 newGame 落账)。 */
+    if(G.flags.zao>=3 && (G.flags.ng||(typeof saveMeta==='function'&&saveMeta().ng))) out.push('她的笔记本上,你的名字旁边,画了三个"正"字。\n\n一百五十天。她全记得。');
     if(G.flags.pawn_count>=3) out.push('这一次,你没有走进甜水巷。\n\n有些东西,你想自己留着。');
     return out;
   }},

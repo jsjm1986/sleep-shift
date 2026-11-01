@@ -60,7 +60,9 @@ DAYS[16].story = [
   ...DAYS[16].story,
   { scene:'noodle', text:['快打烊的时候,面娘忽然在你对面坐下了。她把一个铁盒推过来,里面是一沓皱巴巴的信用点。'],
     choices:[
-      { label:'把攒的钱都借她(₡3,000)', fx:(G)=>{ if(G.coins>=3000){G.coins-=3000;G.flags.mian_helped=1;ren(G);} else {G.coins=0;G.flags.mian_promise=1;} },
+      { label:'把攒的钱都借她(₡3,000)', fx:(G)=>{ if(G.coins>=3000){G.coins-=3000;G.flags.mian_helped=1;ren(G);} else {G.coins=0;G.flags.mian_promise=1;G.flags.mian_helped=1;ren(G);} },
+        /* 凑不齐也要算帮过:她把缺口自己垫了("差的算我的")——掏空口袋换不来任何承认,
+           是把最贵的选择做成了静默惩罚。mian_promise 仍记你没能给全。 */
         lines:[(G)=>G.flags.mian_promise ? '(你把身上所有的都留下了。她数了数,记了一笔账:"差的算我的。")' : null,
                (G)=>G.flags.mian_helped ? '她数了三遍才数完。抬起头时,眼里的东西比信用点亮。' : null] },
       { label:'这次不行', fx:(G)=>{ G.flags.mian_refused=1; G.mood=Math.max(0,G.mood-4); },
@@ -264,8 +266,10 @@ appendStoryAfter(18,
     ]} : null
 );
 
-/* ================= 海之反转:D27 裂缝之后 ================= */
-appendStoryAfter(27,
+/* ================= 海之反转:D27 裂缝之后 =================
+   检查放在 D28 晨:天文馆只开 D15/21/25/27,挂在 D27 晨意味着当天那次还没去就已经判定——
+   玩家必须三天全中、零容差。挪到 D28 晨,D27 白天那次才算得进。 */
+appendStoryAfter(28,
   (G)=>{ if((G.flags.obs||0)<3) return null; G.flags.sea13=1; return '还有一件事,你只告诉了阿枣。\n\n你按星历核对过裂缝外那几点"星星"的位置——\n\n它们不在天空中任何一片星域。它们的高度,和海平面一致。\n\n穹顶之外不是地表,不是永夜。\n\n是海。无边无际的、真正的海。\n\n常暖市不是建在城市里的——是沉没的城市上方,扣着的一口玻璃罩。所谓晴天,是海底的光穿过水面。'; },
   (G)=>(G.flags.sea13) ? '"供体在晴天分泌的多巴胺,能让语义指纹更干净"——宣传册没有说谎。\n\n它只是没有说:那片"晴天",是人类在海底为自己点的最后一片灯。' : null
 );

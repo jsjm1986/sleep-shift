@@ -106,7 +106,7 @@ body.cracked #skyCrack{ height:42vh; opacity:.85; }
 }
 #app::-webkit-scrollbar{ width:0; height:0; }
 
-#flash{ position:fixed; inset:0; z-index:80; pointer-events:none; background:#fff; opacity:0; }
+/* #flash 已删:闪光效果统一走 #blackout(blackFlash),DOM 里的占位节点一并清掉。 */
 #blackout{
   position:fixed; inset:0; z-index:90; pointer-events:none; background:#000;
   opacity:0; transition:opacity .25s;
@@ -168,7 +168,7 @@ body.night .panel::before{ display:none; }
 p.t{ font-size:15.5px; line-height:1.95; margin:8px 0; white-space:pre-wrap; }
 p.t.dim{ color:var(--ink2); font-size:14px; }
 /* 夜晚结算面板里,加粗的都是数据(突触秒/₡)——数据一律等宽 */
-body.night p.t b, .nightNum b{
+body.night p.t b{
   font-family:var(--f-sys); font-weight:700; font-size:.94em;
   font-variant-numeric:tabular-nums;
 }
@@ -256,7 +256,7 @@ body.night .hud b{ text-shadow:0 0 8px rgba(56,242,216,.35); }
 }
 .hud .cell:first-child{ border-left:none; padding-left:2px; }
 .hud .cell .lbl{ font-size:10px; letter-spacing:.14em; color:var(--ink2); }
-.hud .sep{ display:none; }
+/* .hud .sep 已删:JS 不生成该元素。 */
 .moodDots{ display:inline-flex; gap:3px; vertical-align:0; align-self:center; }
 .moodDots i{
   width:7px; height:7px; border-radius:1px;
@@ -532,8 +532,9 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
   letter-spacing:.42em; text-align:center; font-size:16px; margin-bottom:4px; color:#2A241B;
 }
 .doc .sub{
-  text-align:center; color:#9A8C74; font-size:10px; margin-bottom:14px; letter-spacing:.18em;
-  white-space:nowrap; font-family:var(--f-sys);
+  text-align:center; color:#9A8C74; margin-bottom:14px; letter-spacing:.18em;
+  /* 320px 机上 nowrap 会把"23:47"签名时刻裁掉;字号随视口收缩,超窄允许折行 */
+  font-size:min(10px,2.6vw); white-space:normal; font-family:var(--f-sys);
 }
 /* 公文红线:标题下的双线 */
 .doc .docRule{
@@ -603,9 +604,7 @@ body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(12
 }
 .gl-text::before{ color:#FF4FD8; transform:translate(-1.5px,0); opacity:.8; clip-path:inset(0 0 55% 0); }
 .gl-text::after{ color:#38F2D8; transform:translate(1.5px,0); opacity:.8; clip-path:inset(55% 0 0 0); }
-.scan-fix{ position:fixed; inset:0; z-index:61; pointer-events:none; opacity:0;
-  background:linear-gradient(transparent 0%, rgba(255,79,216,.06) 48%, rgba(56,242,216,.06) 52%, transparent 100%);
-  background-size:100% 6px; }
+/* .scan-fix 已删:JS 不生成。 */
 body.gl3 #scanlines{ opacity:.9; }
 
 /* ---------- 下坠转场 ---------- */
@@ -616,13 +615,8 @@ body.gl3 #scanlines{ opacity:.9; }
 }
 #app.falling{ animation:appFall 1s cubic-bezier(.55,0,.9,.4) forwards; pointer-events:none; }
 
-/* ---------- 记忆抽离 ---------- */
-@keyframes memExtract{
-  0%{ transform:translateY(0); filter:blur(0); opacity:1; }
-  70%{ transform:translateY(-30px); filter:blur(2px) brightness(1.6); opacity:.9; }
-  100%{ transform:translateY(-120px); filter:blur(8px) brightness(2.2); opacity:0; }
-}
-.extract{ animation:memExtract 1.4s ease-in forwards; }
+/* ---------- 记忆抽离 ----------
+   memExtract/.extract 已删:JS 全库无生成方。 */
 
 /* ---------- 结局 ---------- */
 .ending{ text-align:center; padding-top:10vh; }
@@ -655,12 +649,7 @@ body.gl3 #scanlines{ opacity:.9; }
 .chatChip .ccIcon{ width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round; }
 
 /* ---------- 说话人标签 / 路线评语 ---------- */
-.whoTag{
-  display:inline-block; font-size:12px; letter-spacing:.22em;
-  color:var(--accent3); border:1px solid var(--accent3);
-  border-radius:8px; padding:3px 10px; margin:2px 0 10px;
-  opacity:.92;
-}
+/* .whoTag 已删:JS 不生成。 */
 .routeLine{
   margin:14px 2px 4px; padding:14px 16px;
   border:1px dashed var(--line); border-radius:6px;
@@ -827,7 +816,9 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 
 /* ---------- 其他 ---------- */
 #muteBtn{
-  position:fixed; right:14px; top:14px; z-index:65; width:38px; height:38px;
+  /* z73:反转卡(70)/章节卡(72)全屏+低频 drone 的时刻正是最想按静音的时候——
+     触屏没有 m 键,按钮不能被压在黑屏底下;仍低于 toast(75)/flash(80)/blackout(90)。 */
+  position:fixed; right:14px; top:14px; z-index:73; width:38px; height:38px;
   /* 刘海屏:固定按钮曾被系统圆角/手势条盖住一半 */
   right:calc(14px + env(safe-area-inset-right,0px));
   top:calc(14px + env(safe-area-inset-top,0px));
@@ -835,7 +826,7 @@ body.night .hud .starsTxt{ color:#E8C46B; }
   color:var(--ink2); font-size:16px; cursor:pointer;
 }
 .center{ text-align:center; }
-.spacer{ flex:1; }
+/* .spacer 已删 */
 .fadeIn{ animation:fadeIn .6s ease both; }
 @keyframes fadeIn{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:none;} }
 .stagger > *{ animation:fadeIn .55s ease both; }
@@ -1091,7 +1082,8 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
 }
 .storyHint b{
   display:block; font-size:10px; letter-spacing:.16em;
-  color:#E4C98B; margin-bottom:2px;
+  /* 浅金标在纸面上约 1.8:1 对比——白天语境换墨色。 */
+  color:var(--ink2); margin-bottom:2px;
 }
 
 /* ---------- 清晨:昨天那一步 ---------- */
@@ -1103,7 +1095,8 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
 }
 .dayLead .leadTag{
   display:block; font-size:10px; letter-spacing:.16em;
-  color:#7DFFE8; margin-bottom:3px;
+  /* #7DFFE8 是霓虹色,在 #FCF8EF 纸面上只剩 1.3:1——这是白天的单据,不是系统界面。 */
+  color:#5F7D57; margin-bottom:3px;
 }
 
 /* ---------- VN 选择回执 ---------- */
@@ -1168,6 +1161,10 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   .cCard{ padding:11px 13px; }
   .cCard .cdesc{ font-size:12.5px; }
   .lifeCard{ padding:8px 4px 7px; }
+  /* 横屏矮视口:VN 框 bottom:0 + 46vh 文本上限,头+文+选项会溢出视口,
+     头像/名牌被裁——框体限高可滚。 */
+  #vn .vnFrame{ max-height:96dvh; overflow-y:auto; }
+  #vn .vnText{ max-height:38vh; }
 }
 /* 签约页头部:工单号很长,窄屏下不能把标题挤成两行再压住正文 */
 .paper header{ flex-wrap:wrap; gap:2px 10px; line-height:1.45; }
@@ -1228,6 +1225,9 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   #scene .ste, #scene .scanY, #scene .pblink, #scene .sway{ animation:none; }
   .ledgerLine{ animation-duration:.01s; }
   #app.falling{ animation-duration:.3s; }
+  /* 漏网的循环位移/闪烁:弹幕是全场最大幅的循环动画;游标/提示脉冲/全屏抖动也要停。 */
+  .dm, .vnNext, .cCard.armed .cArm, .blot.hint::before, #app.gl-on{ animation:none; }
+  .dm{ opacity:0; }
 }
 /* 数据位一律等宽:₡ / 突触秒 / % / 时间戳 */
 .chash,.cNote b,.goalVal,.lifeMeta,.phTime,.sub,.dayTag,.dayNo,.tDocHead,.tFoot,.hud b{
