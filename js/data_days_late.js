@@ -248,7 +248,8 @@ Object.assign(window.DAYS, {
     { type:'pages', pages:[
       '你坠了很久,很久。\n\n浅海在头顶合拢,账簿在远处翻页,地铁驶向没有站名的远方。\n\n而最深处,亮着一盏灯。' ]},
     { type:'twist', id:'T8' },
-    { type:'pages', pages:[
+    /* closing:追加节点(3409/儿子)插到它前面,这盏灯才是这一夜真正的收尾。 */
+    { type:'pages', closing:true, pages:[
       '灯还亮着。\n\n你忽然意识到,那不是调度台的灯。\n\n那是一盏——留给夜班的人的灯。' ]}
   ]}}
 },

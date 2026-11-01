@@ -500,6 +500,11 @@ function runPages(pages, done, opts={}){
     }
     if(typeof p==='object' && p.scene) setScene(p.scene);
     setSpeaker(p);
+    /* 页面级 fx:账单页写"扣了 ₡15",账就必须真扣——此前 render() 从不调用 p.fx,
+       数据层唯一的页面 fx(邻里打包费)是纯哑弹。once 标记防重放重扣。 */
+    if(typeof p==='object' && p && typeof p.fx==='function' && !p.__fxDone){
+      p.__fxDone=1; try{ p.fx(G); }catch(e){}
+    }
     const text = typeof p==='string' ? p : (p.text||[]).join('\n\n');
     pendingChoices = (typeof p!=='string' && p.choices) ? p.choices : null;
     type(text);
@@ -518,8 +523,9 @@ function runPages(pages, done, opts={}){
   /* 纯文本页没有任何可聚焦元素,键盘玩家在第一个页序列即被卡死——
      Enter/Space 等同翻页;焦点在按钮上时让浏览器原生点击生效,不重复触发。 */
   const keyTap=e=>{
+    if(finished||token.dead) return;   // 死序列的 keyTap 不能吞掉别屏的 Enter/Space 默认行为
     if((e.key!=='Enter'&&e.key!==' ')||e.repeat) return;
-    if(e.target.closest&&e.target.closest('button,[href],input,select,textarea,[data-pawn],[data-redeem]')) return;
+    if(e.target.closest&&e.target.closest('button,[href],input,select,textarea,[data-pawn],[data-redeem],[role="button"],[tabindex]')) return;
     e.preventDefault(); tap(e);
   };
   document.addEventListener('keydown',keyTap);
@@ -540,7 +546,19 @@ function showTitle(){
   /* 回标题可能发生在 VN/覆盖层在途时:不清理会留下孤儿对话框
      (done 回调继续推进流程),inert/dimmed 也会残留在壳上。 */
   const _vn=document.getElementById('vn');
-  if(_vn){ _vn.classList.remove('on'); _vn.innerHTML=''; if(_vn.__vnToken) _vn.__vnToken.dead=true; }
+  if(_vn){
+    /* 只置 dead 不够:tap/keyTap 还挂着,keyTap 会继续吞掉别屏 Enter/Space 的默认行为。 */
+    const t=_vn.__vnToken;
+    if(t){ t.dead=true;
+      if(t.tap) _vn.removeEventListener('click',t.tap);
+      if(t.keyTap) document.removeEventListener('keydown',t.keyTap);
+      _vn.__vnToken=null;
+    }
+    _vn.classList.remove('on'); _vn.innerHTML='';
+  }
+  /* 残余覆盖层清扫:梦境弹幕/body 级反转卡/章节卡在半途回标题时会悬尸。 */
+  const _dm=document.getElementById('danmaku'); if(_dm) _dm.innerHTML='';
+  document.querySelectorAll('.twist,.chapterCard,.locStamp').forEach(e=>e.remove());
   app.classList.remove('dimmed'); app.inert=false;
   nightLock=false; dayClosed=-1;
   FX.setMode('day');
@@ -814,14 +832,19 @@ function afterMorning(){
 function wrapSeqFx(seq, day){
   seq.forEach((it,idx)=>{
     if(!it||typeof it!=='object') return;
+    /* 必须锚回原函数再包:DAYS 数据对象是全会话共享的,第二局同一天会二次包装——
+       外层先落旗、内层见旗跳过,真 fx 被永久吞掉(选项照样"选了没下文")。
+       __sqOrig 保证多层包装时调用的永远是最初那一个。 */
     if(typeof it.fx==='function'){
-      const k='sqfx_'+day+'_'+idx, orig=it.fx;
-      it.fx=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+      const k='sqfx_'+day+'_'+idx, orig=it.fx.__sqOrig||it.fx;
+      const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+      w.__sqOrig=orig; it.fx=w;
     }
     if(Array.isArray(it.choices)) it.choices.forEach((c,j)=>{
       if(c&&typeof c.fx==='function'){
-        const k='sqfx_'+day+'_'+idx+'_'+j, orig=c.fx;
-        c.fx=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+        const k='sqfx_'+day+'_'+idx+'_'+j, orig=c.fx.__sqOrig||c.fx;
+        const w=(G)=>{ if(G.flags[k])return; G.flags[k]=1; return orig(G); };
+        w.__sqOrig=orig; c.fx=w;
       }
     });
   });
@@ -1458,7 +1481,7 @@ function openContract(cid, rush){
 
   /* 取消签约=急单作废:G.flags.rush 只在结算时清,改签/不签/裸睡
      都会带着急单价入睡——三条出口统一清。 */
-  const close=mkBtn('先不签了','meek',()=>{ cancelled=true; G.affix=null; G.contract=null; G.contractSnap=null; G.flags.rush=0; modal.remove(); startDay(); });
+  const close=mkBtn('先不签了','meek',()=>{ if(signedDone) return; cancelled=true; G.affix=null; G.contract=null; G.contractSnap=null; G.flags.rush=0; modal.remove(); startDay(); });
   const foot2=h('div','center'); foot2.appendChild(close); paper.querySelector('footer').appendChild(foot2);
 
   const area=paper.querySelector('.signArea');
@@ -2720,6 +2743,7 @@ function showAudit(audit, done){
      实测:只看 mem/mood 的话,D15 就满星了,门槛形同虚设。 */
   const taintedN=taintedList().length;
   const starNote=(()=>{
+    if(audited) return '复核:本份清算单已归档,维持归档时的评级。';   // 重放只读账,结论别演第二遍
     if(G.mem>=70 && G.mood>=50 && taintedN===0){
       if(!audited) G.stars=Math.min(5,G.stars+1);   // 重放不刷星
       /* 首满五星的专属批注:满级是"任务完成"的时刻,通用"评级上调"撑不住它。
@@ -2977,6 +3001,9 @@ $('#muteBtn').addEventListener('click',()=>{
   const m=AUDIO.toggleMute();
   $('#muteBtn').textContent = m?'✕':'♪';
   try{ localStorage.setItem('ss_mute', m?'1':'0'); }catch(e){}
+  /* 解除静音要顺手唤醒环境声:ambientOn 只在首次 pointerdown 调过一次,
+     若当时是静音,环境床与纹理层会一直沉睡到会话结束。 */
+  if(!m){ try{ AUDIO.ambientOn(); }catch(e){} }
 });
 /* 静音偏好跨刷新保留:每次都从响亮开始,是把"安静"变成了一局一签的订阅。 */
 try{

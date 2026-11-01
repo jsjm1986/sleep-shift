@@ -95,8 +95,9 @@ window.CHATS = {
   j17: {
     early: [],
     mid: [
-      /* 他的温度最早 D18 才有(T4 在 D17 夜),而便利店白天只在 D16/24/29 开——
-         mid 窗口里任何条目都播不出来;原 mid 两条已挪进 late。 */
+      /* 他的温度最早 D18 才有(T4 在 D17 夜),而 mid 窗口里便利店只开 D18——
+         且那天他还只是"第四杯咖啡"(温度1),没有任何 b:2 条目播得出;
+         原 mid 两条已挪进 late。push 层的 coins<100 条在 D18 可达。 */
     ],
     late: [
       { b:1, t:'"配额咖啡。"他举了举杯,"第四杯。别问味觉还在不在——在的。\n\n只是它也开始打卡了。"' },
@@ -166,7 +167,8 @@ Object.assign(window.LIFE, {
       const base=[
         '便利店的灯,永远是同一个亮度。\n\n配额咖啡 ₡15,味道像"热"这个字的复印件。你捧着它,在窗边坐下。'
       ];
-      const cp=window.chatPage && chatPage('j17', G);
+      /* 闲聊在正式介绍(j17_day)之后才播——否则初遇页还没到,他先开口了。 */
+      const cp=(window.chatPage && G.flags.j17_day) ? chatPage('j17', G) : null;
       if(cp) base.push(cp);
       return base;
     }
@@ -176,8 +178,8 @@ Object.assign(window.LIFE, {
 /* ---------- 拜访扩充:面馆 +6 天 / 便利店 9 天 / 地铁站(D18 后守望者)+5 天 ---------- */
 (function(){
   const add=(d, lid)=>{ const D=window.DAYS&&DAYS[d]; if(D && Array.isArray(D.life) && !D.life.includes(lid)) D.life.push(lid); };
-  [2,5,10,13,15,19,22].forEach(d=>add(d,'noodle'));
-  [3,6,9,12,15,18,21,24,27].forEach(d=>add(d,'store'));
+  [2,5,10,13,15,19,22,23].forEach(d=>add(d,'noodle'));   /* D23:面娘温度2的唯一窗口原是 D19,多开一天 */
+  [3,6,9,12,15,18,21,24,27,28].forEach(d=>add(d,'store')); /* D28:交钥匙前最后一个白天,给 j17_day_talk 兜底窗口 */
   [19,21,23,25,27].forEach(d=>add(d,'metro'));
 })();
 
@@ -278,6 +280,10 @@ window.CHAT_LIFE = {
 window.chatChip = function(lid, G){
   const m=window.CHAT_LIFE && CHAT_LIFE[lid];
   if(!m || !window.chatPage) return null;
+  /* 地铁站台在 union 之前是空的——卡面不能挂着一个不会出现的名字。 */
+  if(lid==='metro' && !(G.flags&&G.flags.union_helped)) return null;
+  /* j17 的闲聊在他被正式介绍(j17_day)之后才开口——初遇页之前不预告。 */
+  if(lid==='store' && !(G.flags&&G.flags.j17_day)) return null;
   const names=[m.label];
   if(lid==='pawnshop'){
     const c=chatPage('r3409', G, true);

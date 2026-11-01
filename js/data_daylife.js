@@ -70,16 +70,17 @@ window.DAY_SCENE = {
       ];
     }
 
-    /* ② D20 便利店:017 交完班,坐在窗边。那个不能睡觉的人,白天在喝咖啡。
-       partjob 与 store 是同一家店——打零工或窗边坐坐,都能遇上他。*/
+    /* ② D19+ 便利店:017 交完班,坐在窗边。那个不能睡觉的人,白天在喝咖啡。
+       partjob 与 store 是同一家店——打零工或窗边坐坐,都能遇上他。
+       j17_day 只在"坐到他对面"时落账:谢绝了这次,下个开店日还能再遇上他;
+       一拒就永久错过,是把一次寒暄按成了不可逆的分手。*/
     if((id==='partjob'||id==='store') && G.day>=19 && !G.flags.j17_day && (G.flags.j17||G.flags.T4)){
-      G.flags.j17_day=1;
       return [
         '窗边坐着一个穿旧制服的男人,面前摆着第四杯咖啡,一口没动。',
         { who:'j17', text:['"值完了。"他说。\n\n"值完"这两个字用得很怪——别人叫下班。'] },
         { text:['他不需要咖啡。这一点你从他的眼睛就能看出来。\n\n他只是想坐在一个,有人会问他"要不要续杯"的地方。'],
           choices:[
-            { label:'坐到他对面', fx:(G)=>{ G.flags.j17_day_talk=1; if(G.route)G.route.zhen+=1; G.mood=Math.min(100,G.mood+4); },
+            { label:'坐到他对面', fx:(G)=>{ G.flags.j17_day=1; G.flags.j17_day_talk=1; if(G.route)G.route.zhen+=1; G.mood=Math.min(100,G.mood+4); },
               lines:[
                 '你坐下,他没赶你。\n\n你们隔着一张塑料桌,看窗外那块永远准时的晴天。',
                 { who:'j17', text:['"你也是睡班的。"他说,不是问句。\n\n"睡得好吗?"\n\n你愣了一下——三十天里,这是第一次有人这样问你。'] },

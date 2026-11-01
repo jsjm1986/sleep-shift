@@ -184,3 +184,6 @@ const AUDIO = (() => {
   }
   return { SFX, ambientOn, setAmbient, setTexture, toggleMute, isMuted:()=>muted, TEX };
 })();
+/* 脚本级 const 不会挂到 window——main.js 里所有 `window.AUDIO` 守卫此前恒为假,
+   角色语音 sting / 梦境 ambient / 静音恢复全部被静默禁用。 */
+window.AUDIO = AUDIO;
