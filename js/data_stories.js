@@ -60,7 +60,7 @@ DAYS[16].story = [
   ...DAYS[16].story,
   { scene:'noodle', text:['快打烊的时候,面娘忽然在你对面坐下了。她把一个铁盒推过来,里面是一沓皱巴巴的信用点。'],
     choices:[
-      { label:'把攒的钱都借她(₡3,000)', fx:(G)=>{ if(G.coins>=3000){G.coins-=3000;G.flags.mian_helped=1;ren(G);} else {G.coins=0;G.flags.mian_promise=1;G.flags.mian_helped=1;ren(G);} },
+      { label:'把攒的钱都借她(₡3,000)', fx:(G)=>{ if(G.coins>=3000){G.coins-=3000;G.flags.mian_helped=1;ren(G);} else {if(G.coins>0)G.coins=0;G.flags.mian_promise=1;G.flags.mian_helped=1;ren(G);} },
         /* 凑不齐也要算帮过:她把缺口自己垫了("差的算我的")——掏空口袋换不来任何承认,
            是把最贵的选择做成了静默惩罚。mian_promise 仍记你没能给全。 */
         lines:[(G)=>G.flags.mian_promise ? '(你把身上所有的都留下了。她数了数,记了一笔账:"差的算我的。")' : null,
@@ -107,8 +107,11 @@ DAYS[22].story = [
       choices:[
         { label:'潜入云梯塔档案室', fx:(G)=>{ G.flags.clue_file=1; if(G.route)G.route.zhen++; G.mood=Math.max(0,G.mood-4); },
           lines:['门禁"恰好"为你离线了三分钟。\n\n你拍下了一页编剧名单。四十一个名字。\n\n你随手搜了三个——查无此人。\n\n四十一个,全都查无此人。'] },
-        { label:'找守望者要证据', fx:(G)=>{ G.flags.clue_union=1; if(G.route)G.route.zhen++; },
-          lines:['她给你看中继站的监控截图。\n\n每晚 23:47,九条干线,汇向同一个坐标。\n\n"这不是传输。"她说,"这是收成。"'] },
+        { label:'找守望者要证据', fx:(G)=>{ if(!G.flags.union_helped) return; G.flags.clue_union=1; if(G.route)G.route.zhen++; },
+          /* 非会员分支:她只在你推开过那扇门之后才存在——与 unionScene 的"没有找到守望者"同一口径。 */
+          lines:[(G)=>G.flags.union_helped
+            ? '她给你看中继站的监控截图。\n\n每晚 23:47,九条干线,汇向同一个坐标。\n\n"这不是传输。"她说,"这是收成。"'
+            : '你去了旧地铁站。站台空着,广播循环着末班车通知。\n\n你站了一会儿,没有找到守望者。\n\n——她只在旧地铁站出现。而你,没有推开过那扇门。'] },
         { label:'问鱼骨要总账', fx:(G)=>{ G.flags.clue_pawn=1; if(G.route)G.route.zhen++; },
           lines:['"所有\'情感锚点\',都采购自同一个源头。"鱼骨合上账本。\n\n"第 7 供体舱。"\n\n"那里住的不是供体,是库存。"'] }
       ]}
@@ -248,7 +251,7 @@ appendNightNode(29, (G)=>(G.flags.return_sis && G.flags.clue_pawn) ? { type:'pag
 
 /* ================= D18 顶层邀请(评级≥3):温先生·清醒区 ================= */
 appendStoryAfter(18,
-  (G)=>(G.stars>=3) ? { text:['散场时,何主管追了出来,手里捏着一张烫金卡片。'],
+  (G)=>(G.stars>=3) ? { text:['傍晚,何主管追了出来,手里捏着一张烫金卡片。'],
     choices:[
       { label:'去。亲眼看看他们', fx:(G)=>{ if(G.route)G.route.zhi++; G.flags.patron_met=1; G.coins+=600; },
         lines:[
@@ -339,8 +342,10 @@ Object.assign(window.ENDINGS, {
 })();
 
 /* ================= v0.5 叙事肌理:单薄日补写 ================= */
-DAYS[2].story = [
-  '第一次拿到分成的早晨,你在便利店认真逛了十分钟。\n\n货架上的每一排都亮得恰到好处:鲜奶永远差三天过期,饭团永远是刚出炉的温度。',
+DAYS[2].story = (G)=>[
+  (G.nightsWorked===0
+    ? '第一个没有拿到分成的早晨,你在便利店认真逛了十分钟。\n\n货架上的每一排都亮得恰到好处:鲜奶永远差三天过期,饭团永远是刚出炉的温度。'
+    : '第一次拿到分成的早晨,你在便利店认真逛了十分钟。\n\n货架上的每一排都亮得恰到好处:鲜奶永远差三天过期,饭团永远是刚出炉的温度。'),
   '你忽然明白了乌托邦的配方:\n\n不是给你最好的,是给你"永远恰到好处"的。\n\n恰到好处的东西,从不需要你思考。',
   { text:['收银员对你微笑。你想起接待员的微笑、医生的微笑、合同上"自动签收"的微笑。\n\n这座城市的微笑,整齐得像同一行代码。'] }
 ];
@@ -373,7 +378,7 @@ DAYS[13].story = [
     p.splice(at,0,
       (G)=>G.flags.asked_he ? { who:'he', text:[
         '何主管翻评估表的手,停了一下。',
-        '"三周前,您问过我第 14 条。"',
+        '"两周前,您问过我第 14 条。"',
         '"我回去查了。"他说,"那一条,是我签发的。"',
         '他把表合上,没有看你:"所以——别再问了。"'
       ] } : null,
@@ -400,7 +405,7 @@ DAYS[13].story = [
   appendStoryAfter(27,
     (G)=>G.flags.refused_sample ? { text:[
       '那个特批名额,没有空着。',
-      '第 7 供体舱,3 号机架。一个你从没见过的人。\n\n他签了字,领了三倍报酬,住进了有专人陪护的房间。',
+      '第 7 供体舱,3 号机架。一个你从没见过的人。\n\n他签了字,领着那份每晨到账的津贴,住进了有专人陪护的房间。',
       '再后来,第 7 供体舱一夜报废了 3 台矿机。\n\n公告栏没写这件事。\n\n但电梯里,少了一个人。',
       '你拒绝的那扇门,从来不是为你一个人开的。\n\n它只是,需要有个人进去。'
     ] } : null
@@ -427,7 +432,7 @@ Object.assign(window.TWISTS, {
   T14: { title:'估值', glitch:3, lines:[
     '清算大厅的灯,在你走后亮了很久。\n\n值班表:今日剩余——复盘,41,202 份。\n\n第 41,203 份,标了星。',
     '你想起一件事:每周报告上的数字,精确到小数点后两位。\n\n误差 0.01 的报告,不是审出来的。\n\n是逐帧复盘出来的。你的每一周,都有人从头到尾验一遍货:情绪是否可持续,痛苦是否达标,折旧是否在预算内。',
-    '三周的复盘,汇成一张表。表的名字,你在 41 层见过:\n\n《转正定价模型 · 输入参数》。\n\n你不是职员。\n\n你是一台还在计价的设备。'
+    '四周的复盘,汇成一张表。表的名字,你在 41 层见过:\n\n《转正定价模型 · 输入参数》。\n\n你不是职员。\n\n你是一台还在计价的设备。'
   ], fx:(G)=>{ G.flags.T14=1; } }
 });
 DAYS[28].audit.twist='T14';
@@ -589,8 +594,9 @@ appendStoryAfter(1, (G)=>{
   if((past.runs||0)>=2) pages.push('档案袋的角落,贴着一张新的小标签,mono 字体:\n\n「档案 #'+past.runs+' · 本编号已重复启用」\n\n重复启用。你是回头客了。');
   /* 去向栏归档:上一期你选了哪个结局,是他们给你换房间时唯一参考的东西。 */
   if(past.ending){
-    const en=(window.ENDINGS&&ENDINGS[past.ending]&&ENDINGS[past.ending].name)||past.ending;
-    pages.push('档案袋的脊背,还有一栏手写的小字:\n\n「去向:' + en + '」\n\n他们给你换了新的房间。陈设一模一样——连裂缝的位置,都照着原样描了一遍。');
+    /* past.ending 已经过 pastMeta 白名单(非法值=null);原文回退是注入门,删。 */
+    const en=(window.ENDINGS&&ENDINGS[past.ending]&&ENDINGS[past.ending].name)||null;
+    if(en) pages.push('档案袋的脊背,还有一栏手写的小字:\n\n「去向:' + en + '」\n\n他们给你换了新的房间。陈设一模一样——连裂缝的位置,都照着原样描了一遍。');
   }
   return { text:pages };
 });
@@ -864,7 +870,9 @@ DAYS[28].audit.pages.push((G)=>(G.flags.union_helped||G.flags.T4) ? { who:'j17',
    回收 D23 伏笔;与 bond 勾连(借过钱→你认得机架牌上的编号);
    与工作系统勾连(你渲染的海流进他所在的舒缓区)。 */
 appendNightNode(29, (G)=>{
-  if(!(G.flags.met_mian_day)) return null;
+  /* met_mian_day 只是"白天进过店"。借过钱/砍过价/拒绝过她的人同样
+     "见过面娘"——他们不该因为没点过面馆而丢整条儿子线。 */
+  if(!(G.flags.met_mian_day||G.flags.mian_helped||G.flags.mian_deal||G.flags.mian_promise||G.flags.mian_refused)) return null;
   const know=bondOf('mian')>=2;
   const pages=[
     '再往深处,浅海淡成了一层薄雾。雾里坐着一个人。\n\n他不像污染体,也不像回声。他什么都没做,就只是待着——像一个把病房住成了家的人。',
@@ -874,7 +882,7 @@ appendNightNode(29, (G)=>{
     ? { text:['你认得这张牌。在一张赎回单据的复印件上——「赎回条目:第一声妈 · 已付讫」。','他就是那个不肯下云的人。面娘的儿子。'] }
     : { text:['你不认识他。\n\n但你认得那种坐姿——在云背里住得很久、又不打算走的人,都是这么坐的。'] });
   pages.push(
-    { text:['他先开的口,声音很轻:"你是新来的值班台吗?"',
+    { text:['他先开的口,声音很轻:"你是新来的调度台吗?"',
       '"我在这儿等一个号码。等它叫到我,我就下去。"他顿了顿。',
       '"这里不疼。这里的人,都不咳嗽。"'] },
     { text:['他知道这里是云背吗?他知道"下去"意味着什么吗?'],
@@ -882,7 +890,7 @@ appendNightNode(29, (G)=>{
         { label:'告诉他:你妈妈在下面等你', fx:(G)=>{ G.flags.son_told=1; if(G.route)G.route.ren++; },
           lines:[
             (G)=>know?'"面娘。"你把那个称呼递过去,"她在甜水巷。每天择菜,等你下去吃饭。"'
-                     :'"你妈妈在下面等你。"你说。你不知道她的名字,但你知道有一锅汤,一直温着。',
+                     :'"你妈妈在下面等你。"你说。你只见过她一面,但你知道有一锅汤,一直温着。',
             '他看着你,看了很久。',
             '"……她做的面,"他忽然说,"是不是有点咸?"\n\n"她总说盐放多了。其实是她怕我吃得太快。"',
             '他站起来。水从他的肩膀上退下去,像退潮。\n\n他没有跟你走同一条路。但你看见他的背影往岸边去了——走得不快,一点也不像一个病人。'] },

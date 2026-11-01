@@ -128,13 +128,32 @@ function setMeta(m){ lsSet(SAVE_PREFIX+'meta', m); }
 /* 档案跟随(v2.13):你上一份档案没有被销毁——结案批注被钉进了新档案的首页。
    独立键,不在存档槽体系里:清存档不清档案柜,因为档案柜不归你管。
    首周目永远不读它(flags.ng 门禁)——每个人都是从干净的第一份档案开始的。 */
-function pastMeta(){ try{ return JSON.parse(lsGet(SAVE_PREFIX+'past')||'null'); }catch(e){ return null; } }
+/* past 同样是存档→innerHTML 通道(D1 去向栏/D24 鱼骨旧账),此前裸 parse 零校验。
+   白名单归一化:未知字段不回退原文,宁缺毋滥。 */
+function pastMeta(){
+  try{
+    const p=JSON.parse(lsGet(SAVE_PREFIX+'past')||'null');
+    if(!p||typeof p!=='object'||Array.isArray(p)) return null;
+    const nz=v=>{ const n=Math.floor(+v); return (isFinite(n)&&n>=0)?n:0; };
+    const r=(p.route&&typeof p.route==='object')?p.route:{};
+    return {
+      runs:nz(p.runs), bonds:nz(p.bonds), pawns:nz(p.pawns), redeems:nz(p.redeems),
+      verdict:['ren','zhen','zhi'].includes(p.verdict)?p.verdict:null,
+      ending:(window.ENDINGS&&ENDINGS[p.ending])?p.ending:null,
+      countedRun:(typeof p.countedRun==='string'&&p.countedRun.length<40)?p.countedRun:null,
+      route:{ren:nz(r.ren),zhen:nz(r.zhen),zhi:nz(r.zhi)}
+    };
+  }catch(e){ return null; }
+}
 function writePast(endingId){
   const p=pastMeta()||{runs:0};
   /* 卷宗号按"完成的一局"计,不按"看过几遍结局页"计——
      自动档停在 D30 白天,重进再睡再选会让同一局 +N 个卷宗。
      去重要能活过刷新:局号写进档案柜本身,而不是存在当局 flags 里。 */
-  if(p.countedRun!==G.flags.runId){ p.countedRun=G.flags.runId; p.runs=(p.runs||0)+1; }
+  /* v2.31 之前的旧存档没有 runId:给它一次性的 +1,而不是永不计卷宗。 */
+  if(G.flags.runId ? p.countedRun!==G.flags.runId : p.countedRun===undefined){
+    p.countedRun=G.flags.runId||'legacy'; p.runs=(p.runs||0)+1;
+  }
   p.route=Object.assign({}, G.route||{ren:0,zhen:0,zhi:0});
   p.verdict=domAxis(2);
   /* 关系温度一并归档:他们会登记你认识谁——都是数据质量的一部分。 */
@@ -193,9 +212,9 @@ function normalizeSave(s){
      会让 nightQuality() 直接判"优"、applyMood() 算出负透明度,HUD 显示 9999%。
      这里统一夹回设计区间。 */
   /* 负数余额是合法状态(大清算净扣会扣到负数)——夹到 0 等于每次刷新免债。 */
-  s.mem=clamp(s.mem,0,100);
-  s.mood=clamp(s.mood,0,100);
-  s.stars=clamp(s.stars,0,5);
+  s.mem=clamp(Math.floor(s.mem),0,100);
+  s.mood=clamp(Math.floor(s.mood),0,100);
+  s.stars=clamp(Math.floor(s.stars),0,5);
   s.weekEarn=Math.max(0, num(s.weekEarn,0));
   if(s.morningDay!=null) s.morningDay=clamp(Math.floor(num(s.morningDay,0)),0,30);
   s.dayReady=clamp(Math.floor(num(s.dayReady,0)),0,30);
@@ -233,7 +252,9 @@ function normalizeSave(s){
     const numOk=v=>typeof v==='number'&&isFinite(v)&&Math.abs(v)<=200000;
     if(!sn.cid || !has(CONTRACTS,sn.cid)
        || !numOk(sn.earn) || !numOk(sn.risk) || !numOk(sn.moodDelta) || !numOk(sn.memCost)
-       || !(sn.minEarn===undefined||numOk(sn.minEarn)) || !(sn.maxEarn===undefined||numOk(sn.maxEarn)))
+       || !(sn.minEarn===undefined||numOk(sn.minEarn)) || !(sn.maxEarn===undefined||numOk(sn.maxEarn))
+       /* af.name 进结算行 innerHTML——篡改档塞 HTML 就是注入。白名单形状。 */
+       || !(sn.af==null || (typeof sn.af==='object' && typeof sn.af.name==='string' && sn.af.name.length<40 && !/[<>]/.test(sn.af.name))))
       s.contractSnap=null;
   }
   MEMORIES.forEach(m=>{ if(!['full','tainted','pawned'].includes(s.mems[m.id])) s.mems[m.id]=m.pre?'pawned':'full'; });
@@ -242,7 +263,28 @@ function normalizeSave(s){
   if(!s.chatSeen||typeof s.chatSeen!=='object'||Array.isArray(s.chatSeen)) s.chatSeen={};
   /* 瞬态字段不该带着旧值跨档:loot/pendingSettle 是"今夜还没结"的暂存,
      读档进来时应是干净的白天。 */
-  s.loot=null; s.pendingSettle=null; s.lastLog=null;
+  s.loot=null; s.pendingSettle=null; s.lastLog=null; s.__atSleep=null;
+  /* 存档→innerHTML 注入链封堵:flags 内部值此前零校验。
+     ① vitals 原样进体征行 innerHTML——生成文本从不含 <>,带了就是改过的;
+     ② 计数类会被拼进反转/档案页文案(且 .repeat 负数会 RangeError 软锁反转页)。 */
+  if(s.flags && typeof s.flags==='object'){
+    if(typeof s.flags.vitals!=='string' || s.flags.vitals.length>200 || /[<>]/.test(s.flags.vitals)) delete s.flags.vitals;
+    ['pawn_count','redeem_count','feed_inst','obs','xm','zao','j17_day_talk','mian_deal'].forEach(k=>{
+      if(s.flags[k]!==undefined && typeof s.flags[k]!=='boolean'){
+        const n=Math.floor(+s.flags[k]); s.flags[k]=(isFinite(n)&&n>=0)?n:0;
+      }
+    });
+  }
+  /* history 条目逐行进账本 innerHTML:字段原样拼接,非对象条目还会让
+     String(e2.d) 抛 TypeError 把结局页炸成死屏。白名单归一化。 */
+  if(Array.isArray(s.history)){
+    s.history=s.history.filter(e=>e&&typeof e==='object'&&!Array.isArray(e)).slice(0,31).map(e=>({
+      d:clamp(Math.floor(num(e.d,0)),0,30),
+      tag:String(e.tag==null?'':e.tag).replace(/[<>]/g,'').slice(0,24),
+      mem:clamp(num(e.mem,0),0,100)
+    }));
+  }
+  s.coins=clamp(s.coins,-1e9,1e9);   // 无界数值会渲染成 ₡1e+21 之类丑串
   return s;
 }
 
@@ -582,6 +624,9 @@ function showTitle(){
      只删 DOM 清不掉计时器——死链会在标题页上重开序列(实测可复现的"流程复活")。 */
   const _dm=document.getElementById('danmaku'); if(_dm) _dm.innerHTML='';
   document.querySelectorAll('.twist,.chapterCard,.locStamp').forEach(e=>{ e.__dead=1; e.remove(); });
+  /* falling 末帧会把整页钉在 opacity:0 + pointer-events:none——
+     键盘在 falling 期 Tab 到「回到标题」会让标题页不可见且不可点。 */
+  app.classList.remove('falling');
   app.classList.remove('dimmed'); app.inert=false;
   nightLock=false; dayClosed=-1;
   FX.setMode('day');
@@ -765,7 +810,8 @@ function glitchBase(){
 
 /* 路线显影:主导轴(≥min 才显影;并列按 体制>真相>人性 —— 与 D22/D26 路线回响同一优先序)。 */
 function domAxis(min=2){
-  const r=G.route||{ren:0,zhen:0,zhi:0};
+  if(!G||!G.route) return null;   // 防御债:所有调用点现都有 G 护航,防未来回归
+  const r=G.route;
   const m=Math.max(r.ren,r.zhen,r.zhi);
   if(m<min) return null;
   if(r.zhi===m) return 'zhi';
@@ -1039,7 +1085,10 @@ function startDay(){
        此前硬写"周固定 ₡900",D7 实际 790、D28 实际 900——数字对不上单据。 */
     let fixed=400;
     const wa=(window.worldAudit&&worldAudit(G.day))||null;
-    if(wa&&wa.fees&&wa.fees.length) fixed+=wa.fees.reduce((a,f)=>a+(f[1]||0),0);
+    /* 与 showAudit 同口径:陪护费只收样本——非 feed_path 玩家看到的
+       "本周固定"要比实际扣的多 ₡20,目标条和清算单对不上账。 */
+    const fees=(wa&&wa.fees?wa.fees:[]).filter(f=>G.flags.feed_path||String(f[0]).indexOf('陪护')<0);
+    if(fees.length) fixed+=fees.reduce((a,f)=>a+(f[1]||0),0);
     else{ fixed+=300; if(G.day>=8)fixed+=90; if(G.day>=15)fixed+=30; }
     const label=doneAll?'赎回完成 · 她的全部'
       :`赎回目标 · 她的全部 ${redeemedN}/3${next?` · 下一件:${next[1]} ₡${nextCost}`:''}`;
@@ -1361,7 +1410,10 @@ function unionScene(){
   let pages;
   if(G.flags.union_helped){
     pages = G.day>=26
-      ? ['据点比往常安静。守望者把一枚旧按钮放在你手心。\n\n"如果到了最后那天,"她说,"它还在等一个主人。"']
+      ? ['据点比往常安静。守望者把一枚旧按钮放在你手心。\n\n"如果到了最后那天,"她说,"它还在等一个主人。"',
+         /* 断电结局的"你按下守望者留下的按钮"以此为准:入会但 D26 之后
+            没回访过的玩家,从没收到过它。 */
+         (G)=>{ G.flags.got_button=1; return null; }]
       : ['据点里,守望者正在给新来的失眠者讲课。\n\n"他们管记忆损耗叫磨损,管神经报废叫折旧。"她看见你,停了停,"你们管超频叫福报。\n\n管做梦,叫出算力。"'];
     G.mood=clamp(G.mood+3,0,100);
   } else if(G.flags.T4){
@@ -1644,6 +1696,9 @@ function showPrologue(done){
   const el=h('div','twist');
   el.innerHTML=`<div class="tt gl-text" data-t="序 章">序 章</div><div class="tl"></div><button class="go">继 续</button>`;
   document.body.appendChild(el);
+  /* 与 showTwist/showChapterCard 同款:.twist 遮罩挡得住鼠标挡不住 Tab——
+     序章底下就是标题页按钮,键盘 Enter 能在序章背后再开一局。 */
+  app.inert=true;
   const lines=[
     '2087 年。\n\n人类不再为了工作而睡觉——\n\n而是为了睡觉,而活着。',
     '"大闲置"拿走了九成职业那年,所有人都以为机器接得住。\n\n接了二十年,撞了三堵墙:电不够;算不出"懂";造不出"没见过"。',
@@ -1685,7 +1740,7 @@ function showPrologue(done){
     finished=true;
     go.remove();
     el.style.transition='opacity 1s'; el.style.opacity='0';
-    setTimeout(()=>{ el.remove(); done&&done(); }, 1000);
+    setTimeout(()=>{ el.remove(); app.inert=false; done&&done(); }, 1000);
   }
   go.addEventListener('click',e=>{ e.stopPropagation(); AUDIO.SFX.click(); advance(); });
   el.addEventListener('click',advance);
@@ -1736,7 +1791,7 @@ function showCodex(){
     ['第 14 条','记忆损耗补偿,由系统自动签收,无需再次确认。',()=>!!G.flags.T1],
     ['梦境频道','全市热播的治愈节目。渲染它的算力与情绪样本,采购自你。',()=>!!G.flags.danmaku],
     ['记忆典当','越痛的记忆越值钱。赎回,从来比典当贵。',()=>!!G.flags.pawnshop_open],
-    ['样本供体','报酬三倍,专人陪护,自愿参加。',()=>!!G.flags.feed_path],
+    ['样本供体','在职津贴,专人陪护,自愿参加。',()=>!!G.flags.feed_path],
     ['情感锚点','植入给你的牵挂。有牵挂的人梦更甜——梦更甜,数据更好。',()=>!!G.flags.T5],
     ['试用期','一份三十天的合同。第 11 条:异议通道,自 2081 年起维护中。',()=>!!G.flags.T6],
     ['穹顶裂缝','城市正中央那道谁也不谈论的细缝。',()=>!!G.flags.cracked],
@@ -1907,17 +1962,30 @@ function goSleep(){
   const D=DAYS[G.day]||{};
   vib(70);
   app.classList.add('falling');
+  /* .falling 只禁 pointer-events,挡不住键盘:下落动画窗内对聚焦的
+     生活行动卡按 Enter → doLife 在 #vn 上开场 → 定时器清 #app 不动 #vn →
+     夜界面垫在 VN 底下 → VN 走完 startDay 重建白天、夜流程被吞、
+     nightLock 恒真 → 睡班按钮永久死。inert 同时断键盘与焦点。 */
+  app.inert=true;
   FX.fall();
+  /* 代际守卫:计时器只认排它时的那个 G。nightLock 是共享旗标——
+     键盘可在 falling 期间 Tab 到「回到标题」→ 重开一局 → 再按睡班,
+     旧 timer 见 nightLock 已置真(新一次排的)就不返回,对重载的 G 再结算一次。 */
+  const gen=G;
   setTimeout(()=>{
-    if(!nightLock) return;               // 期间已被推进(例如读档/回标题)
-    app.innerHTML=''; app.classList.remove('falling');
+    if(!nightLock || G!==gen){ app.classList.remove('falling'); app.inert=false; return; }
+    app.innerHTML=''; app.classList.remove('falling'); app.inert=false;
     if(D.night && D.night.forced){
       // 强制剧情夜同样要结算今晚签下的合同,否则这些天等于白干一夜
       let cons=null;
       if(G.contract){
-        /* 剧情强制夜只结算不演工单蒙太奇:工单号不推进,不然 W1 会被静默跳过。 */
-        G.pendingSettle=applyContractEconomy(false);
-        cons=(window.consumerPage&&consumerPage(G.contract, G.pendingSettle.week))||null;
+        /* 结算推迟到 finish():此处先落账的话,夜里任何存档点(如反转落旗)
+           都会写下"已结算+合同仍在签"的自相矛盾档——读档重放即整晚双结算。
+           此刻只钉入睡快照:质量/风险口径仍按"带着什么状态入睡"。 */
+        G.__atSleep={mood:G.mood,mem:G.mem};
+        /* 工单号预算不推进:与 applyContractEconomy 内 workWeek 同口径。 */
+        const wkBudget=Math.min(3,((G.workCounts&&G.workCounts[G.contract])||0)+1);
+        cons=(window.consumerPage&&consumerPage(G.contract, wkBudget))||null;
       }
       const dive=()=>startDream(D.night.forced);
       /* consumerPage 现返回页数组(享受页/账行页分开),不能再包一层当单页。 */
@@ -1952,10 +2020,14 @@ function tonightHash(cid){
    一台折旧到 30% 的矿机,产出和刚出厂的一模一样,承诺落空。
    这里把它们接进来。**硬性封顶 0.8**:避免"难受 → 少赚 → 更没力气恢复"的死亡螺旋。
    调参就在这两个阈值里;要关掉,把 cool / wear 的取值都改成 1 即可。 */
-function nightQuality(){
+function nightQuality(atSleep){
   if(!G) return { factor:1, grade:'优', why:[] };
-  const cool = G.mood>=60 ? 1 : (G.mood>=40 ? 0.95 : 0.85);   // 散热 = 情绪稳定度
-  const wear = G.mem >=80 ? 1 : (G.mem >=50 ? 0.95 : 0.90);   // 折旧 = 神经磨损
+  /* atSleep:强制夜把结算推迟到 finish(),取样必须仍用"入睡时"的状态——
+     梦境过程里的净化回血不该算进"带着什么状态入睡"。 */
+  const mood=(atSleep&&atSleep.mood!=null)?atSleep.mood:G.mood;
+  const mem =(atSleep&&atSleep.mem !=null)?atSleep.mem :G.mem;
+  const cool = mood>=60 ? 1 : (mood>=40 ? 0.95 : 0.85);   // 散热 = 情绪稳定度
+  const wear = mem >=80 ? 1 : (mem >=50 ? 0.95 : 0.90);   // 折旧 = 神经磨损
   const factor = Math.max(0.8, cool*wear);
   const why=[]; if(cool<1) why.push('散热不足'); if(wear<1) why.push('折旧超标');
   const grade = factor>=1 ? '优' : (factor>=0.9 ? '良' : '降级');
@@ -2008,10 +2080,10 @@ function nightLog(worked){
 
 /* 结算合同经济(收益/情绪/记忆/污染/评级/蒙太奇取数)。
    独立出来是为了让"强制剧情夜"也能结算——否则那些夜里签的合同会被静默丢弃。 */
-function applyContractEconomy(advanceWork){
+function applyContractEconomy(advanceWork, atSleep){
   const c=CONTRACTS[G.contract];
   /* 散热与折旧要在扣情绪之前取样:今晚的数据质量,取决于你带着什么状态入睡。 */
-  const q=nightQuality();
+  const q=nightQuality(atSleep);
   const rush=(G.flags.rush&&window.RUSH)?RUSH[G.day]:null;
   /* 签约时冻结的快照优先:签完合同后白天行动若动了评级/真相倾向,
      结算价不该跟着漂移——卡面是多少,到账就是多少。 */
@@ -2037,7 +2109,7 @@ function applyContractEconomy(advanceWork){
   /* 风险加成取"入睡时"的情绪——同一函数里质量因子刻意取睡前值(见 q),
      风险掷签若取睡后值,卡面价与实掷口径就不一致(情绪 50 签金融,
      自身损耗把人砸到 39,实际按 28% 掷而卡面写 18%)。 */
-  const moodAtSleep=G.mood;
+  const moodAtSleep=(atSleep&&atSleep.mood!=null)?atSleep.mood:G.mood;
   G.mood=clamp(G.mood+moodDelta-3,0,100);
   if(memCost) G.mem=clamp(G.mem-memCost,0,100);
   if(c.id==='biaozhu') G.flags.biaozhu_done=1;
@@ -2197,7 +2269,8 @@ function nextDay(){
   nightLock=false;
   /* 三十天账本:每一天收一行(D 号/标签/记忆)——终局前整体滚过 */
   if(!Array.isArray(G.history)) G.history=[];
-  if(G.history.length < 31){
+  /* 按日去重:读档重玩同一天会让账本出现两行同日(结局夜那支已有同款守卫)。 */
+  if(G.history.length < 31 && !G.history.some(r=>r&&r.d===G.day)){
     /* 昨夜体征:由天数确定性生成(被监测的压迫感日常化) */
     G.flags.vitals = `深睡 ${5 + G.day % 3}h${(17 + G.day * 7) % 43}m · 梦次 ${1 + G.day % 3} · 心率 ${52 + (G.day * 7) % 18} · 体温 ${(36.1 + (G.day % 5) * 0.1).toFixed(1)}°C`;
     const auditDay = !!(DAYS[G.day]||{}).audit;
@@ -2328,7 +2401,12 @@ function startDream(spec){
     const L=G.loot;
     const lines=[];
     if(spec.ending){
-      const pe=G.pendingSettle; G.pendingSettle=null;
+      /* 结算推迟到此:夜里任何存档都是"结算前"一致态,读档重放只结一次。
+         门槛必须是 __atSleep——它只在强制夜分支(G.contract 已签)落下。
+         普通合同夜在 settleContract 已现结,合同仍挂着,照 G.contract 判会再结一次
+         (实测:污染命中夜双结算,nightsWorked 冲出 31)。 */
+      const pe=G.pendingSettle || (G.__atSleep&&G.contract?applyContractEconomy(false,G.__atSleep):null);
+      G.pendingSettle=null; G.__atSleep=null;
       /* 最后一班的账不能被结局页静默吞掉:钉在第 31 天抬头下的批注栏里。 */
       window.__endSettleLine=pe?settleLine(pe.earn,pe.af,pe.c&&pe.c.id,pe.q,pe.gross,pe.hs):null;
       /* 三十天账本恒缺第 30 行:结局夜不走 nextDay,history.push 永不执行——
@@ -2339,7 +2417,10 @@ function startDream(spec){
       showEndingChoice(); return;
     }
     const worked=!!G.contract;
-    const pe=G.pendingSettle; G.pendingSettle=null;
+    /* 同上:__atSleep 是"结算被推迟到 finish"的唯一真标记(pendingSettle 为兼容死读,
+       从未有写入点)。普通 hit 夜走到这里时 settleContract 早已结过,不得再结。 */
+    const pe=G.pendingSettle || (G.__atSleep&&G.contract?applyContractEconomy(false,G.__atSleep):null);
+    G.pendingSettle=null; G.__atSleep=null;
     if(pe) lines.push(settleLine(pe.earn, pe.af, pe.c && pe.c.id, pe.q, pe.gross, pe.hs));
     /* 强制夜的污染命中此前完全静默:记忆掉了 3-6%、一段记忆被污染,
        玩家只看到结算行。普通 hit 夜有一页明示,这里补一行同款告知。 */
@@ -2657,8 +2738,10 @@ function showTwist(id, done){
   /* 已见证的反转被读档重放时:内容不再播,副作用也不再扣——
      mood −10/−15 不是幂等写入,每重放一次就多扣一次。 */
   if(G.seen.includes(id)){ done&&done(); return; }
-  G.seen.push(id);
-  try{autoSave();}catch(e){}   // seen 不落盘的话,刷新重播会再扣一次 mood/重跑 fx
+  /* 「已见证」必须在效果落账之后才持久化——开场就落旗,反转中途刷新会把
+     mood/fx/choices 永久跳过(T5 的 return_sis 选项直接焊死两个结局)。
+     无选项的在 finish() 落旗,有选项的在玩家选定后落旗。 */
+  const markSeen=()=>{ if(G && !G.seen.includes(id)){ G.seen.push(id); try{autoSave();}catch(e){} } };
   FX.setMode('night','core');
   const el=h('div','twist');
   el.innerHTML=`<div class="tt gl-text" data-t="${T.title}">${T.title}</div><div class="tl"></div><button class="go">继 续</button>`;
@@ -2699,6 +2782,7 @@ function showTwist(id, done){
     go.remove(); el.querySelector('.tt').classList.remove('gl-text');
     if(T.mood) G.mood=clamp(G.mood+T.mood,0,100);
     T.fx&&T.fx(G);
+    if(!T.choices) markSeen();
     setGlitch(T.glitch||glitchBase()); applyMood();
     if(T.choices){
       const box=h('div'); box.style.marginTop='4vh';
@@ -2707,7 +2791,7 @@ function showTwist(id, done){
         b.addEventListener('click',e=>{
           e.stopPropagation();
           const before={coins:G.coins,mem:G.mem,mood:G.mood,stars:G.stars,route:(G.route?Object.assign({},G.route):null)};
-          c.fx&&c.fx(G); AUDIO.SFX.soft(); applyMood();
+          c.fx&&c.fx(G); markSeen(); AUDIO.SFX.soft(); applyMood();
           const delta=stateDelta(before,G);
           el.querySelector('.tl').textContent=(c.line||'')+(delta?`\n\n（选择回执：${delta}）`:'');
           refreshHud();
@@ -3001,7 +3085,11 @@ function showEnding(id){
   setScene(null);
   /* 合并而不是覆盖:setMeta 整对象替换,将来加任何键都会被这一行抹掉。 */
   if(E.ng){ const m=saveMeta(); m.ng=1; setMeta(m); }
-  const lines=E.lines.concat(E.extra?E.extra(G):[]);
+  /* 函数行按当前 G 求解:结局正文要按"按钮到底拿到没有"这类状态分体,
+     不能让台词谎称玩家按下了从未到手的东西。 */
+  const lines=E.lines.concat(E.extra?E.extra(G):[])
+    .map(l=>{ if(typeof l==='function'){ try{return l(G);}catch(e){return null;} } return l; })
+    .filter(l=>l!=null);
   app.innerHTML='';
   const wrap=h('div','ending');
   wrap.appendChild(h('div','etag',E.tag));
