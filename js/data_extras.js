@@ -8,7 +8,10 @@ window.MEMORIES = [
   { id:'sis_face',   name:'妹妹的脸',           price:1500, special:true, pre:true, line:'开局前已典当。你记得"有过",不记得"长什么样"。' },
   { id:'sis_name',   name:'妹妹的名字',         price:1800, special:true, pre:true, line:'两个字,你喊过一万次。' },
   { id:'sis_summer', name:'和妹妹的最后一个夏天', price:2600, special:true, line:'西瓜,蝉鸣,和一句没说完的再见。' },
-  { id:'sis_bday',   name:'妹妹的生日',         price:1200, special:true, pre:true, line:'你曾在每年那天早起。为什么早起,已经典当了。' },
+  /* 生日不押在柜上:三段弧 ₡13,500 超出了实测最优天花板(≈₡12,600),
+     「她的全部」会变成永远 2/3 的死目标;开局只押脸和名字(₡9,900),
+     生日是你手里仅剩的一件——真缺钱了,玩家还可以自己把它也当掉。 */
+  { id:'sis_bday',   name:'妹妹的生日',         price:1200, special:true, line:'你曾在每年那天早起。为什么早起,只有你还记着。' },
   { id:'mother_tone',name:'妈妈喊你吃饭的尾音', price:700,  line:'那种尾音上扬的调子,全世界只有一个人会。' },
   { id:'firstlove',  name:'初恋的夏天',         price:900,  line:'汽水味的风,和没敢牵的手。' },
   { id:'rain',       name:'为什么讨厌雨',       price:600,  line:'你只记得"讨厌",不记得"为什么"。像一句被删掉论证的结论。' },
@@ -122,7 +125,7 @@ window.ENDINGS = {
     const out=[];
     if(G.flags.zao>=3) out.push('口袋里有一瓶没喝完的汽水。\n\n现实里,没有这个牌子。');
     if(G.flags.cracked) out.push('天花板正中央,也有一道细缝。\n\n你以前怎么没注意过。');
-    if(G.flags.sis_all) out.push('口袋里,三枚赎回印,按日期排得整整齐齐。\n\n柜台后面那个只收不问的人,管这三段合起来叫:全须全尾。');
+    if(G.flags.sis_all) out.push('口袋里,赎回印按日期排得整整齐齐,一枚不缺。\n\n柜台后面那个只收不问的人,管这三段合起来叫:全须全尾。');
     if(G.flags.T14) out.push('终端的开机画面上,多了一行小字:\n\n"《转正定价模型 · 输入参数》——你的编号,被描粗了一遍。"');
     return out;
   }},

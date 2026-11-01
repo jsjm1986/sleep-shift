@@ -875,12 +875,13 @@ function startDay(){
   /* 长期目标常驻:序章立了"赎回妹妹的脸 ₡4,500",但白天页面一次都没提醒,
      玩家很容易只剩"今天签哪单"的短视循环。 */
   const goalHTML=(()=>{
-    /* 「赎回她的全部」三段弧:脸/名字/生日开局都押在柜上(赎回=典当价×3,共 ₡13,500)。
-       旧版只追"脸"一档——₡4,500 勤勉线 D14 就能凑齐,序章立下的不等式其实破了;
-       三件都押着之后,₡13,500 才是那个"诚实工作够不到"的数。 */
+    /* 「赎回她的全部」三段弧:脸/名字开局押在柜上,生日还在手里(赎回=典当价×3,
+       缺口 ₡9,900)。旧版只追"脸"一档——₡4,500 勤勉线 D14 就能凑齐,序章立下的不等式破了;
+       三件都押又过头——₡13,500 超出实测最优天花板(≈₡12,600),弧会变死目标。
+       ₡9,900 才是对的数:纯标注活够不到,得接金融/黑单/特批里至少一条脏路。 */
     const ARC=[['sis_face','妹妹的脸'],['sis_name','她的名字'],['sis_bday','她的生日']];
-    /* 三件赎回价各不相同(典当价×3 = 4500/5400/3600,共 13500)——
-       从 MEMORIES 实读,不写死,否则条上的数字和柜台对不上。 */
+    /* 三件赎回价各不相同(典当价×3 = 4500/5400/3600)——从 MEMORIES 实读,不写死,
+       否则条上的数字和柜台对不上;开局已持有的段直接计入进度。 */
     const arcCost=id=>{ const m=MEMORIES.find(x=>x.id===id); return m?m.price*3:0; };
     const arcTotal=ARC.reduce((a,[id])=>a+arcCost(id),0);
     const redeemedSum=ARC.reduce((a,[id])=>a+(G.mems[id]!=='pawned'?arcCost(id):0),0);
@@ -898,9 +899,11 @@ function startDay(){
     else{ fixed+=300; if(G.day>=8)fixed+=90; if(G.day>=15)fixed+=30; }
     const label=doneAll?'赎回完成 · 她的全部'
       :`赎回目标 · 她的全部 ${redeemedN}/3${next?` · 下一件:${next[1]} ₡${nextCost}`:''}`;
+    /* "共"要显示未赎缺口(arcTotal−已持有段),不是总价——生日开局在手里,
+       若写总价 ₡13,500,玩家会以为要攒的数比实际需要多 3,600。 */
     const val=doneAll
       ?`现有 ₡${G.coins} · 本周固定 ≈ ₡${fixed}`
-      :`现有 ₡${G.coins} / ₡${nextCost}(本件) · 共 ₡${arcTotal.toLocaleString()} · 本周固定 ≈ ₡${fixed}`;
+      :`现有 ₡${G.coins} / ₡${nextCost}(本件) · 还需 ₡${(arcTotal-redeemedSum).toLocaleString()} · 本周固定 ≈ ₡${fixed}`;
     return `<div class="goalLabel">${label}</div>
       <div class="goalBar"><i style="width:${pct}%"></i></div>
       <div class="goalVal">${val}</div>
