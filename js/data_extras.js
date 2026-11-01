@@ -5,10 +5,10 @@
    状态:full(完整) / tainted(污染,可赎回) / pawned(已典当)
    price = 典当价;越私人的越值钱 */
 window.MEMORIES = [
-  { id:'sis_face',   name:'妹妹的脸',           price:1500, special:true, line:'开局前已典当。你记得"有过",不记得"长什么样"。' },
-  { id:'sis_name',   name:'妹妹的名字',         price:1800, special:true, line:'两个字,你喊过一万次。' },
+  { id:'sis_face',   name:'妹妹的脸',           price:1500, special:true, pre:true, line:'开局前已典当。你记得"有过",不记得"长什么样"。' },
+  { id:'sis_name',   name:'妹妹的名字',         price:1800, special:true, pre:true, line:'两个字,你喊过一万次。' },
   { id:'sis_summer', name:'和妹妹的最后一个夏天', price:2600, special:true, line:'西瓜,蝉鸣,和一句没说完的再见。' },
-  { id:'sis_bday',   name:'妹妹的生日',         price:1200, special:true, line:'你曾在每年那天早起。为什么早起,已经典当了。' },
+  { id:'sis_bday',   name:'妹妹的生日',         price:1200, special:true, pre:true, line:'你曾在每年那天早起。为什么早起,已经典当了。' },
   { id:'mother_tone',name:'妈妈喊你吃饭的尾音', price:700,  line:'那种尾音上扬的调子,全世界只有一个人会。' },
   { id:'firstlove',  name:'初恋的夏天',         price:900,  line:'汽水味的风,和没敢牵的手。' },
   { id:'rain',       name:'为什么讨厌雨',       price:600,  line:'你只记得"讨厌",不记得"为什么"。像一句被删掉论证的结论。' },
@@ -61,7 +61,8 @@ window.TWISTS = {
     '是你妹妹。',
     '你伸手去碰档案。档案自动翻到了背面——\n\n"情感锚点植入记录"\n"植入对象:你"\n"植入项目:妹妹"\n"记忆来源:捐赠。捐赠者:第7供体舱,编号3409。"',
     '你从来没有过妹妹。\n\n"妹妹"是公司写给你的:一段租来的思念。有牵挂的人梦更甜——梦更甜,数据更干净。\n\n他们不是在你心里种了一个人。他们是在一台矿机里,焊了一枚锚。',
-    '而有一个人,真的失去过妹妹。\n\n你对她的一切想念,都是从她的人生里,偷来的。'
+    '而有一个人,真的失去过妹妹。\n\n你对她的一切想念,都是从她的人生里,偷来的。',
+    '(终端在你脚边打印出一行小字,像每一次它替你做主时那样公事公办:\n\n本次归档,不可撤回。)'
   ], choices:[
     { label:'归还这段记忆', fx:(G)=>{ G.flags.return_sis=1; G.mood=Math.min(100,G.mood+6); },
       line:'你把它捧在手里,像捧着别人的骨灰。\n\n"我会送你回家。"你说。' },
@@ -81,7 +82,7 @@ window.TWISTS = {
     '像一块屏幕刷新失败。穹顶闪了 0.3 秒——\n\n黑。纯粹的、没有一丝光的黑。\n\n几颗真正的星星,像锈迹一样嵌在里面。',
     '然后,晴天若无其事地续上了,仿佛什么都没发生。\n\n除了城市正中央,多了一道谁也不谈论的细缝。',
     '"供体在晴天分泌的多巴胺,能让语义指纹更干净。"\n\n宣传册第 4 页,你一直以为这只是个比喻。'
-  ], fx:(G)=>{ G.flags.cracked=1; document.body.classList.add('cracked'); } },
+  ], fx:(G)=>{ G.flags.T7=1; G.flags.cracked=1; document.body.classList.add('cracked'); } },
 
   T8: { title:'第一代', glitch:3, lines:[
     '云背最深处。没有海,没有账簿,没有地铁。\n\n只有一排排机架,比你的老得多——接口是黄铜的,铭牌是蚀刻的。\n\n每一格里都坐着一个人形轮廓。安静,重叠,像一场不散的合影。',
@@ -121,6 +122,7 @@ window.ENDINGS = {
     const out=[];
     if(G.flags.zao>=3) out.push('口袋里有一瓶没喝完的汽水。\n\n现实里,没有这个牌子。');
     if(G.flags.cracked) out.push('天花板正中央,也有一道细缝。\n\n你以前怎么没注意过。');
+    if(G.flags.sis_all) out.push('口袋里,三枚赎回印,按日期排得整整齐齐。\n\n柜台后面那个只收不问的人,管这三段合起来叫:全须全尾。');
     if(G.flags.T14) out.push('终端的开机画面上,多了一行小字:\n\n"《转正定价模型 · 输入参数》——你的编号,被描粗了一遍。"');
     return out;
   }},

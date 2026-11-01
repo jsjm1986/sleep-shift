@@ -41,7 +41,7 @@ Object.assign(window.DAYS, {
                  '她从怀里抽出一页内部备忘,拍在铁皮桌上:\n\n《关于"醒觉会"年度赞助的公关预算批复》——盖章,签发,2085年。',
                  { who:'guardian', text:['"我们收了。"她说得很平,"收了,才有地方站着说话。站不住的人,连梦都保不住。"\n\n(反抗在这个城市里,是分层收费的。)'] },
                  '(黑单 · 数据走私 已解锁。旧地铁站的门,为你常开。)'] },
-        { label:'算了。有些门不推开就不会响', fx:(G)=>{ G.flags.laid_low=1; },
+        { label:'算了。有些门不推开就不会响(仅此一次)', fx:(G)=>{ G.flags.laid_low=1; },
           lines:['你把本子合上,压在枕头下面。\n\n那一晚,你睡得意外地沉。'] }
       ]}
   ],
@@ -253,7 +253,9 @@ Object.assign(window.DAYS, {
     '白天很长。长得像一辈子。\n\n你把小本子写满了最后一页。阿枣看完,在上面补了一行字:\n\n"第 31 天,见。"\n\n——如果你还有第 31 天的话。'
   ],
   moodDelta:4,
-  life:['park','zao','clinic','radio'],
+  /* 告别日加一碗面:son_told 在 D29 夜才落账,若 D30 进不了面馆,
+     面娘温度 3 的交底闲聊(b:3)永远没有播放窗口。 */
+  life:['park','zao','clinic','radio','noodle'],
   life_note:'最后一天',
   offers:['biaozhu'],
   night:{ forced:{ theme:'core', title:'最后一班', taint:false, ending:true, nodes:[

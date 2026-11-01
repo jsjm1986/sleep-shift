@@ -237,6 +237,8 @@ body.night p.t b, .nightNum b{
 .hud{
   display:flex; align-items:center; gap:0; flex-wrap:wrap;
   padding:8px 12px; margin-top:10px;
+  /* 监测读数不该滚出视野:白天页内容长,滚到合同区时余额/情绪曾经消失。 */
+  position:sticky; top:6px; z-index:40;
   font-size:12px; color:var(--ink2);
   background:linear-gradient(var(--paper),var(--paper2));
   border:1px solid #E0D3B2; border-radius:6px;
@@ -280,6 +282,11 @@ body.night .hud .warn{ color:#FF8A8E; }
   font-size:30px; letter-spacing:.3em; margin:2px 0 10px;
 }
 /* 白天 hub 的标题下压一条公文红线 */
+.dayNote{
+  display:inline-block; margin-left:12px; font-size:11px; font-weight:400;
+  letter-spacing:.12em; color:var(--ink2); vertical-align:middle;
+  border:1px solid var(--line); padding:2px 8px; border-radius:2px;
+}
 .dayTitle:not(.gl-text)::after{
   content:''; display:block; width:44px; height:3px; background:var(--seal);
   margin-top:8px; opacity:.85;
@@ -384,7 +391,9 @@ body.night .cCard .cdesc{ color:#93A7C4; }
 }
 body.night .lifeCard .ic{ background:rgba(120,220,255,.06); border-color:rgba(120,220,255,.25); }
 .lifeCard .nm{ font-family:var(--f-doc); font-weight:700; font-size:12.5px; margin-top:7px; line-height:1.5; color:var(--ink); }
-.lifeCard.used{ opacity:.32; pointer-events:none; }
+/* 已用卡保留可点:点上去给一句"今天已经用掉了"的回执,
+   而不是静默死卡——pointer-events:none 会把 bindActivate 的回执一并杀死。 */
+.lifeCard.used{ opacity:.32; }
 
 /* ---------- 合同签署(仪式) ---------- */
 .modal{
@@ -756,6 +765,8 @@ body:not(.night) #vn .vnHead .vnPortrait{ border-color:var(--accent3) !important
 .vnText{
   font-size:15.5px; line-height:1.95; min-height:96px; white-space:pre-wrap;
   text-shadow:0 1px 2px rgba(0,0,0,.5);
+  /* 长页(结算单/档案袋)曾经溢出对话框:限高 + 可滚,文字不再顶穿底部按钮。 */
+  max-height:46vh; overflow-y:auto;
 }
 .vnNext{
   position:absolute; right:16px; bottom:12px; font-size:13px; color:#38F2D8;
@@ -817,6 +828,9 @@ body.night .hud .starsTxt{ color:#E8C46B; }
 /* ---------- 其他 ---------- */
 #muteBtn{
   position:fixed; right:14px; top:14px; z-index:65; width:38px; height:38px;
+  /* 刘海屏:固定按钮曾被系统圆角/手势条盖住一半 */
+  right:calc(14px + env(safe-area-inset-right,0px));
+  top:calc(14px + env(safe-area-inset-top,0px));
   border-radius:50%; border:1px solid var(--line); background:var(--card);
   color:var(--ink2); font-size:16px; cursor:pointer;
 }
@@ -1002,18 +1016,21 @@ body.night .btn.danger{ color:#FFB4B6; }
   animation:none;
 }
 
-/* ---------- HUD:情绪数值与规则入口 ---------- */
-.hud .pill .moodNum{
+/* ---------- HUD:情绪/折旧数值与规则入口 ---------- */
+/* 修正死选择器:HUD 用的是 .cell,.pill 从未在 DOM 出现过——
+   i 按钮的规格此前一直靠内联继承兜底,实测宽度塌成 0。 */
+.hud .cell .moodNum{
   font-size:14px; font-variant-numeric:tabular-nums;
   min-width:18px; text-align:right;
 }
-.hud .pill .hudInfo{
+.hud .cell .hudInfo{
   width:16px; height:16px; border-radius:50%;
   border:1px solid var(--line); background:transparent; color:var(--ink2);
   font:700 10px/14px -apple-system,sans-serif; padding:0; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
+  align-self:center;
 }
-.hud .pill .hudInfo:active{ transform:scale(.92); }
+.hud .cell .hudInfo:active{ transform:scale(.92); }
 
 /* ---------- 白天目标条 ---------- */
 .goalStrip{
@@ -1224,6 +1241,17 @@ body.night .goalStrip{ background:var(--card); border-color:var(--line); }
   margin:16px auto 0; max-width:520px; text-align:center;
   font-size:12px; line-height:1.8; color:var(--ink2); opacity:.85;
   padding-top:10px; border-top:1px dashed var(--line);
+}
+
+/* ---------- 结局卡二段确认 ---------- */
+.cCard .cArm{
+  font-size:11px; letter-spacing:.14em; color:#38F2D8;
+  margin-top:6px; min-height:14px; opacity:0; transition:opacity .25s;
+}
+.cCard.armed .cArm{ opacity:1; animation:vnBlink 1.1s ease-in-out infinite; }
+.cCard.armed{
+  border-color:#38F2D8;
+  box-shadow:0 0 0 1px rgba(56,242,216,.35), 0 6px 22px rgba(56,242,216,.12);
 }
 
 /* ---------- 试用期倒计时(D22 起) ---------- */
