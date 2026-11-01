@@ -700,6 +700,8 @@ function routeFieldJitter(){ return routeAxis3()==='zhen'; }
 /* ================= 关系温度(v2.14) =================
    不引入新数值:温度从你已挣来的 flag 派生。借过的钱、看过的总账、听过的疤,
    全都记在行为里——世界读行为,不读分数。0 陌生 / 1 相识 / 2 信任 / 3 交底。 */
+const BOND_IDS=['mian','yu','guardian','xiaoman','zao','r3409','j17'];
+const BOND_NAMES={mian:'面娘',yu:'鱼骨',guardian:'守望者',xiaoman:'小满',zao:'阿枣',r3409:'3409',j17:'017'};
 function bondOf(id){
   const x=G.flags||{};
   switch(id){
@@ -1164,7 +1166,9 @@ function doLife(lid){
     const chats=[window.chatPage&&chatPage('yu',G), window.chatPage&&chatPage('r3409',G)]
       .filter(Boolean).map(c=>({ who:c.who, text:c.text }));
     if(chats.length) pre=(pre||[]).concat(chats);
-    const open=()=>openPawn(()=>startDay());
+    /* 串门页也可能升温(鱼骨/3409 的闲话会落 flag)——与 doLife 主路径同一套照会 */
+    const before={}; BOND_IDS.forEach(id=>before[id]=bondOf(id));
+    const open=()=>{ BOND_IDS.forEach(id=>{ if(bondOf(id)>before[id]) toast(`${BOND_NAMES[id]} · 关系近了一步`); }); openPawn(()=>startDay()); };
     if(pre && pre.length) runPages(pre, open); else open();
     return;
   }
@@ -1200,7 +1204,13 @@ function doLife(lid){
       seq=pages.slice(0,at).concat(scene, pages.slice(at));
     }
   }
-  runPages(seq, ()=>startDay());
+  /* 温度升档的可见回执:生活行动常会把关系往前推一步(债、总账、交底),
+     但温度是派生值、没有自己的 UI——不照会一声,"做了什么"就像没发生。 */
+  const before={}; BOND_IDS.forEach(id=>before[id]=bondOf(id));
+  runPages(seq, ()=>{
+    BOND_IDS.forEach(id=>{ if(bondOf(id)>before[id]) toast(`${BOND_NAMES[id]} · 关系近了一步`); });
+    startDay();
+  });
 }
 
 function unionScene(){
@@ -1224,7 +1234,11 @@ function unionScene(){
   if(gchat) pages=pages.concat([{ who:'guardian', text:gchat.text }]);
   const uext=(window.LIFE_EXTRA&&LIFE_EXTRA.metro)||null;
   if(uext) pages=pages.concat(uext);
-  runPages(pages, ()=>startDay());
+  const before={}; BOND_IDS.forEach(id=>before[id]=bondOf(id));
+  runPages(pages, ()=>{
+    BOND_IDS.forEach(id=>{ if(bondOf(id)>before[id]) toast(`${BOND_NAMES[id]} · 关系近了一步`); });
+    startDay();
+  });
 }
 
 /* ================= 典当行 ================= */
@@ -1278,7 +1292,8 @@ function openPawn(done){
       AUDIO.SFX.coin(); applyMood(); refreshHud();
       const pc=modal.querySelector('.pawnCoins'); if(pc) pc.textContent='₡'+G.coins;
       rowFlash(p.closest('.panel'));
-      toast(`「${m.name}」被抽走了。世界亮了一点,也空了一点。`);
+      /* gone 是这段记忆具体失去的东西:典当不该只有一条通用提示 */
+      toast(`「${m.name}」被抽走了。${m.gone||'世界亮了一点,也空了一点。'}`);
       setTimeout(()=>{ if(closed) return; modal.remove(); openPawn(done); }, 700);
     }
     if(r){
@@ -1291,14 +1306,20 @@ function openPawn(done){
       G.flags.redeem_count=(G.flags.redeem_count||0)+1;
       /* 「她的全部」弧终点落账:三件起点典当物全数赎回。
          T5 的批注页会认这个 flag——赎回来的不只是脸,是她整个回来过。 */
-      if(['sis_face','sis_name','sis_bday'].every(id=>G.mems[id]==='full') && !G.flags.sis_all){
-        G.flags.sis_all=1;
-        setTimeout(()=>toast('柜台后的灯,难得亮了一下。\n\n她的脸,她的名字,她的生日——都回来了。'), 900);
-      }
+      const arcDone=['sis_face','sis_name','sis_bday'].every(id=>G.mems[id]==='full') && !G.flags.sis_all;
+      if(arcDone) G.flags.sis_all=1;
       AUDIO.SFX.chime(); applyMood(); refreshHud();
       const pc=modal.querySelector('.pawnCoins'); if(pc) pc.textContent='₡'+G.coins;
-      toast(`「${m.name}」回来了。`);
-      setTimeout(()=>{ if(closed) return; modal.remove(); openPawn(done); }, 700);
+      /* 赎回是这游戏最贵的购买,结果必须是一段"回来的戏"而不是一声提示音:
+         关掉柜台,演这段记忆回来的页;妹妹弧三段齐时再压一页「全须全尾」。 */
+      const pages=[{text:[m.back||`「${m.name}」回来了。`]}];
+      if(arcDone) pages.push({text:[
+        '她的脸。她的名字。她的生日。\n\n押出去的人生,今天一件不缺地躺在你的记忆里。',
+        '鱼骨难得地敲了敲柜台——不是催账,是致意。\n\n"这行三十年,"他说,"『全须全尾』这四个字的章,我盖过不到十次。"\n\n他把章推过来,让你自己按了下去。'
+      ]});
+      closed=true; modal.remove();
+      toast(`「${m.name}」回来了。记忆完整性 +4%`);
+      runPages(pages, ()=>{ openPawn(done); });
     }
   });
 
@@ -2612,7 +2633,14 @@ function showAudit(audit, done){
      实测:只看 mem/mood 的话,D15 就满星了,门槛形同虚设。 */
   const taintedN=taintedList().length;
   const starNote=(()=>{
-    if(G.mem>=70 && G.mood>=50 && taintedN===0){ G.stars=Math.min(5,G.stars+1); return '产出稳定,散热良好,无残留污染。评级上调。'; }
+    if(G.mem>=70 && G.mood>=50 && taintedN===0){
+      G.stars=Math.min(5,G.stars+1);
+      /* 首满五星的专属批注:满级是"任务完成"的时刻,通用"评级上调"撑不住它。
+         而池子的嘉奖,从来不应该是好听的。 */
+      if(G.stars===5 && !G.flags.star5_seen){ G.flags.star5_seen=1;
+        return '评级上调至 A+。\n\n复核员在你的档案页脚批了一行:"该供体已无明显优化空间,建议列为样版机架。"\n\n——他们夸奖你的方式,是把你的磨损,写成了出厂标准。'; }
+      return '产出稳定,散热良好,无残留污染。评级上调。';
+    }
     if(G.mem<45 || G.mood<32 || taintedN>0){
       G.stars=Math.max(0,G.stars-1);
       return taintedN>0 ? `检出残留污染体 ${taintedN} 处。评级下调。(净化可恢复)`
