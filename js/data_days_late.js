@@ -84,8 +84,8 @@ Object.assign(window.DAYS, {
       '"另外,"他微笑,"公司想邀请您加入一个特别计划。"\n\n【样本供体 · 特批】。报酬是普通单的三倍,夜间有专人陪护。\n\n"当然,"他把笔轻轻放在桌上,"您自愿。"',
       { text:['笔,就在那里。'],
         choices:[
-          { label:'接受特批', fx:(G)=>{ G.flags.feed_path=1; if(G.route)G.route.zhi++; G.coins+=2000; G.mood=Math.max(0,G.mood-6); },
-            lines:['"明智。"何主管握了握你的手。他的手很凉。\n\n当晚你收到了 ₡2,000。\n\n你盯着那串数字看了很久——它安静得像买断。'] },
+          { label:'接受特批', fx:(G)=>{ G.flags.feed_path=1; if(G.route)G.route.zhi++; G.mood=Math.max(0,G.mood-6); },
+            lines:['"明智。"何主管握了握你的手。他的手很凉。\n\n"补偿分四期发放,"他补充,"在职津贴。只要在职,就到账。"\n\n你盯着"在职"两个字看了很久。\n\n他们连买断,都分期。'] },
           { label:'拒绝', fx:(G)=>{ G.flags.refused_sample=1; G.mood=Math.min(100,G.mood+3); },
             lines:['"没关系。"何主管收回笔,笑容没有任何变化。\n\n但走廊的灯,在你身后暗了一格。'] }
         ]}

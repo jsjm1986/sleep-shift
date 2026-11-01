@@ -594,15 +594,25 @@ function showMorning(){
   if(G.dayReady===G.day){ startDay(); return; }
   setScene('bedroom');
   const D=DAYS[G.day]||{};
+  const lines = [...(typeof D.morning==='function' ? D.morning() : (D.morning||['新的一天。']))];
   if(G.morningDay!==G.day){
     G.flags.gym=0;
     G.lifeDone=false;
     if(D.moodDelta){ G.mood=clamp(G.mood+D.moodDelta,0,100); }
     if(D.fx && !G.flags['fx'+G.day]){ D.fx(G); G.flags['fx'+G.day]=1; }
+    /* 特批分期:买断 ₡2,000 不再当晚结清——「样本供体·在职津贴」共四期,
+       每个清晨到账 ₡500。他们连买断都分期,期期都提醒你已被登记。
+       必须挂在 morningDay 去重块内:挂在外面,读档重放清晨会重复到账。
+       (D.morning 数组要拷贝:直接 push 会污染 DAYS 源数据,重载后重播) */
+    if(G.flags.feed_path && (G.flags.feed_inst||0)<4 && G.day>21){
+      G.flags.feed_inst=(G.flags.feed_inst||0)+1;
+      G.coins+=500;
+      const last=G.flags.feed_inst>=4;
+      lines.push(`特批津贴 · 第 ${G.flags.feed_inst} 期 +₡500 到账。\n\n备注栏写着:样本供体 · 在职。${last?'——四期结清。这份档案,正式装订完成。':''}`);
+    }
     G.morningDay=G.day;
   }
   applyMood();
-  const lines = typeof D.morning==='function' ? D.morning() : (D.morning||['新的一天。']);
   /* 昨天白天做了什么,今早必须有人提。
      原先这里只有一条"记忆 <80 时 30% 概率"的随机错认——那是通用的、和你的选择无关
      的噪音。现在把玩家昨天真的走过的那一步放在最前面,随机错认退到它后面。
@@ -958,6 +968,22 @@ function startDay(){
           bindActivate(lc,()=>{ AUDIO.SFX.soft(); toast('这张单不在册上。要找它,得先去旧地铁站——D18 那天,门开过。'); });
           cwrap.appendChild(lc);
         }
+        return;
+      }
+      /* 高值档期:金融池单做完要隔两天(档期排到),黑单要隔风控期——
+         此前两单近似常驻,勤勉线 D14 就财务自由,稀缺是池子本来就该有的样子。
+         急单是池子自己的加急档,不吃这两条冷却。 */
+      const cdKey=(c.id==='finance'||c.id==='black')?c.id+'_cd':null;
+      if(cdKey && G.day<(G.flags[cdKey]||0)){
+        const back=G.flags[cdKey];
+        const lc=h('div','cCard locked');
+        lc.style.setProperty('--c1','#3A3F55'); lc.style.setProperty('--c2','#556088');
+        lc.innerHTML=`<div class="lockStamp">${c.id==='finance'?'档 期 满':'风 控 期'}</div><div class="cname"><span class="cicon">${cIcon(cid)}</span> ${c.name}</div>
+          <div class="cdesc">${c.id==='finance'?'本档期已排满。高算力档,池子只放这么多窗。':'走私有池要隔风控期。他们在洗上一趟的指纹。'}</div>
+          <div class="cmeta"><span>下一窗口 · D${String(back).padStart(2,'0')}</span></div>`;
+        lc.setAttribute('aria-disabled','true');
+        bindActivate(lc,()=>{ AUDIO.SFX.soft(); toast(`已排期:下一次窗口在 D${String(back).padStart(2,'0')}。`); });
+        cwrap.appendChild(lc);
         return;
       }
       const need=c.tier||0;
@@ -1834,6 +1860,10 @@ function applyContractEconomy(advanceWork){
   G.nightsWorked=(G.nightsWorked||0)+1;     // 终局结算单要写"多少个夜晚"
   G.coins+=earn; G.weekEarn+=earn;
   if(c.id==='black') G.stars=Math.max(0,G.stars-1);
+  /* 高值档期与风控期:金融隔两天、黑单隔三天才放下一窗。
+     在结算(而非签约)时点立期——改签没入睡不耗档期。 */
+  if(c.id==='finance') G.flags.finance_cd=G.day+3;
+  if(c.id==='black')   G.flags.black_cd=G.day+4;
   G.mood=clamp(G.mood+moodDelta-3,0,100);
   if(memCost) G.mem=clamp(G.mem-memCost,0,100);
   if(c.id==='biaozhu') G.flags.biaozhu_done=1;
